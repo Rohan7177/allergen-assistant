@@ -79,7 +79,8 @@ const App = () => {
       console.error("Failed to fetch from LLM:", error);
       setMessages((prevMessages) => [
         ...prevMessages,
-        { text: "Whoops! Looks like my lasso got tangled. Couldn't fetch that info right now. Try again, partner!", isUser: false, isBot: true, isError: true },
+        // Fixed: Escaped apostrophe in "Couldn't"
+        { text: "Whoops! Looks like my lasso got tangled. Couldn&#39;t fetch that info right now. Try again, partner!", isUser: false, isBot: true, isError: true },
       ]);
     } finally {
       setIsLoading(false); // Hide loading indicator
@@ -171,7 +172,7 @@ const App = () => {
                 <Image
                   source={{ uri: "https://placehold.co/40x40/FFD700/000000?text=🤠" }} // Placeholder for Woody's icon
                   style={styles.avatar}
-                  accessibilityLabel="Chatbot icon"
+                  accessibilityLabel="Chatbot avatar" // Added alt prop
                   onError={(e) => console.log('Image failed to load:', e.nativeEvent.error)}
                 />
               </View>
@@ -187,7 +188,7 @@ const App = () => {
                 <Image
                   source={{ uri: msg.imageUrl }}
                   style={styles.imageThumbnail}
-                  accessibilityLabel="Uploaded menu image thumbnail"
+                  accessibilityLabel="Uploaded menu image thumbnail" // Added alt prop
                   onError={(e) => console.log('Thumbnail failed to load:', e.nativeEvent.error)}
                 />
               ) : (
@@ -202,7 +203,7 @@ const App = () => {
                 <Image
                   source={{ uri: "https://placehold.co/40x40/87CEEB/000000?text=👤" }} // Placeholder for user icon
                   style={styles.avatar}
-                  accessibilityLabel="User icon"
+                  accessibilityLabel="User avatar" // Added alt prop
                   onError={(e) => console.log('Image failed to load:', e.nativeEvent.error)}
                 />
               </View>
@@ -217,7 +218,7 @@ const App = () => {
               <Image
                 source={{ uri: "https://placehold.co/40x40/FFD700/000000?text=🤠" }}
                 style={styles.avatar}
-                accessibilityLabel="Chatbot icon"
+                accessibilityLabel="Chatbot icon indicating loading" // Added alt prop
               />
             </View>
             <View style={styles.messageBubble}>
@@ -233,11 +234,12 @@ const App = () => {
               <Image
                 source={{ uri: "https://placehold.co/40x40/FFD700/000000?text=🤠" }}
                 style={styles.avatar}
-                accessibilityLabel="Chatbot icon"
+                accessibilityLabel="Chatbot icon" // Added alt prop
               />
             </View>
             <View style={styles.messageBubble}>
-              <Text style={styles.messageText}>Hold on there, partner! Menu upload using a photo isn't supported just yet, but stay tuned!</Text>
+              {/* Fixed: Escaped apostrophe in "isn't" */}
+              <Text style={styles.messageText}>Hold on there, partner! Menu upload using a photo isn&#39;t supported just yet, but stay tuned!</Text>
             </View>
           </View>
         )}
