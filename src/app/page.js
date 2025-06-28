@@ -96,22 +96,31 @@ const App = () => {
   // State to manage visibility of "not supported" message for image upload
   const [showImageNotSupported, setShowImageNotSupported] = useState(false);
 
+  // New state for typewriter effect
+  const [displayMessage, setDisplayMessage] = useState('');
+  const typingIntervalRef = useRef(null);
+  const fullBotResponseRef = useRef(''); // Ref to store the full bot response for typing
+
   // Auto-scroll to bottom whenever messages change
   useEffect(() => {
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollToEnd({ animated: true });
     }
-  }, [messages]);
+  }, [messages, displayMessage]); // Added displayMessage as a dependency
 
-  // Initial greeting message from Woody the chatbot
+  // Initial greeting message from Woody the chatbot - now instant
   useEffect(() => {
-    setMessages([
-      {
-        text: "Howdy partner! What delicious dish are you curious about today? You can type its name or even send me a photo of a menu!",
-        isUser: false,
-        isBot: true,
-      },
-    ]);
+    // Clear any existing intervals if the component re-renders (good practice)
+    if (typingIntervalRef.current) {
+      clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
+    }
+    const initialText = "Howdy partner! What delicious dish are you curious about today? You can type its name or even send me a photo of a menu!";
+    // Set the initial message instantly without typing effect
+    setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
+    // Reset typing states
+    setDisplayMessage('');
+    fullBotResponseRef.current = '';
   }, []); // Run once on component mount
 
   // Function to handle sending a text message (dish name)
@@ -121,6 +130,16 @@ const App = () => {
 
     // Add user's message to chat immediately
     const newUserMessage = { text: text, isUser: true };
+    // Clear any ongoing typing effect when a new user message is sent
+    if (typingIntervalRef.current) {
+      clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
+      // Ensure the last bot message is marked as complete if it was interrupted
+      setMessages(prevMessages => prevMessages.map(msg =>
+        msg.isBot && !msg.isTypingComplete ? { ...msg, text: fullBotResponseRef.current, isTypingComplete: true } : msg
+      ));
+    }
+
     setMessages((prevMessages) => [...prevMessages, newUserMessage]);
     setInputMessage(''); // Clear input field
 
@@ -141,18 +160,42 @@ const App = () => {
       }
 
       const data = await response.json();
-      // Add bot's response to chat
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { text: data.response, isUser: false, isBot: true },
-      ]);
+      const botResponseText = data.response;
+
+      // Add a new empty message for the bot to start typing into
+      setMessages((prevMessages) => [...prevMessages, { text: '', isUser: false, isBot: true, isTypingComplete: false }]);
+      fullBotResponseRef.current = botResponseText; // Store full response
+
+      setDisplayMessage(''); // Reset display message for new typing
+      let charIndex = 0;
+      // Faster typing speed (e.g., 15ms per character instead of 25ms)
+      typingIntervalRef.current = setInterval(() => {
+        if (charIndex < botResponseText.length) {
+          setDisplayMessage(prev => prev + botResponseText.charAt(charIndex));
+          charIndex++;
+        } else {
+          clearInterval(typingIntervalRef.current);
+          typingIntervalRef.current = null;
+          // Update the last bot message in 'messages' state with the complete text
+          setMessages(prevMessages => prevMessages.map((msg, idx) =>
+            idx === prevMessages.length - 1 ? { ...msg, text: botResponseText, isTypingComplete: true } : msg
+          ));
+        }
+      }, 15); // Typing speed in milliseconds per character (made faster)
+
+
     } catch (error) {
       console.error("Failed to fetch from LLM:", error);
+      // Add error message directly (no typing effect for errors for simplicity)
       setMessages((prevMessages) => [
         ...prevMessages,
         // Fixed: Escaped apostrophe in "Couldn't"
-        { text: "Whoops! Looks like my lasso got tangled. Couldn&#39;t fetch that info right now. Try again, partner!", isUser: false, isBot: true, isError: true },
+        { text: "Whoops! Looks like my lasso got tangled. Couldn&#39;t fetch that info right now. Try again, partner!", isUser: false, isBot: true, isError: true, isTypingComplete: true },
       ]);
+      if (typingIntervalRef.current) { // Clear interval if an error occurred during typing
+        clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
+      }
     } finally {
       setIsLoading(false); // Hide loading indicator
     }
@@ -160,6 +203,15 @@ const App = () => {
 
   // Function to handle image upload (simulated for V1)
   const handleImageUpload = () => {
+    // Clear any ongoing typing effect when a new user message (image) is sent
+    if (typingIntervalRef.current) {
+      clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
+      setMessages(prevMessages => prevMessages.map(msg =>
+        msg.isBot && !msg.isTypingComplete ? { ...msg, text: fullBotResponseRef.current, isTypingComplete: true } : msg
+      ));
+    }
+
     // For V1, we simulate an image being selected and show a placeholder
     // Using a base64 encoded SVG for the placeholder thumbnail to ensure it always shows
     const dummyImageSvgBase64 = "data:image/svg+xml;base64," + btoa(`
@@ -170,7 +222,7 @@ const App = () => {
     `);
     setMessages((prevMessages) => [
       ...prevMessages,
-      { imageUrl: dummyImageSvgBase64, isUser: true, isImage: true },
+      { imageUrl: dummyImageSvgBase64, isUser: true, isImage: true, isTypingComplete: true },
     ]);
     setShowImageNotSupported(true); // Show the specific message
     setTimeout(() => setShowImageNotSupported(false), 5000); // Hide after 5 seconds
@@ -178,13 +230,16 @@ const App = () => {
 
   // Function to clear all messages
   const handleClearConversation = () => {
-    setMessages([
-      {
-        text: "Howdy partner! What delicious dish are you curious about today? You can type its name or even send me a photo of a menu!",
-        isUser: false,
-        isBot: true,
-      },
-    ]);
+    // Clear any existing intervals
+    if (typingIntervalRef.current) {
+      clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
+    }
+    const initialText = "Howdy partner! What delicious dish are you curious about today? You can type its name or even send me a photo of a menu!";
+    // Reset the initial greeting to be instant again
+    setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
+    setDisplayMessage(''); // Clear display message state
+    fullBotResponseRef.current = ''; // Clear stored full response
   };
 
   return (
@@ -239,8 +294,13 @@ const App = () => {
                   onError={(e) => console.log('Thumbnail failed to load:', e.nativeEvent.error)}
                 />
               ) : (
+                // Conditionally render the message being typed or the full message
+                // The last bot message in the array is the one potentially being typed.
                 <FormattedText
-                  text={msg.text}
+                  text={msg.isBot && index === messages.length - 1 && !msg.isTypingComplete
+                    ? displayMessage
+                    : msg.text
+                  }
                   style={styles.messageText}
                   boldStyle={styles.boldText}
                   errorStyle={msg.isError ? styles.errorMessageText : null}
@@ -295,7 +355,7 @@ const App = () => {
           value={inputMessage}
           onChangeText={setInputMessage}
           onSubmitEditing={handleSendTextMessage} // Allows sending with Enter key
-          returnKeyType="send"
+          returnKeyKeyType="send"
         />
 
         {/* Send Button */}
