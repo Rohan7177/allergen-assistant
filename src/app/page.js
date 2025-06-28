@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  // Removed Image import as we are using SVG directly for avatars
+  Image, // Re-imported Image component for thumbnail
   Platform // Used for platform-specific styling if needed
 } from 'react-native-web';
 
@@ -42,7 +42,8 @@ const FormattedText = ({ text, style, boldStyle, errorStyle }) => {
 };
 
 // SVG Icon for Chatbot (Cowboy Hat)
-const CowboyHatIcon = ({ size = 24, color = '#FFFFFF' }) => (
+// Removed 'color' prop as it was unused and causing a build error
+const CowboyHatIcon = ({ size = 24 }) => (
   <svg
     width={size}
     height={size}
@@ -58,7 +59,8 @@ const CowboyHatIcon = ({ size = 24, color = '#FFFFFF' }) => (
 );
 
 // SVG Icon for User (Person Outline)
-const PersonIcon = ({ size = 24, color = '#FFFFFF' }) => (
+// Removed 'color' prop as it was unused and causing a build error
+const PersonIcon = ({ size = 24 }) => (
   <svg
     width={size}
     height={size}
@@ -222,7 +224,7 @@ const App = () => {
             {!msg.isUser && (
               <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
                 {/* Chatbot logo (Woody) - using inline SVG */}
-                <CowboyHatIcon size={24} color="#FFF" />
+                <CowboyHatIcon size={24} /> {/* Removed color prop */}
               </View>
             )}
             <View
@@ -254,7 +256,7 @@ const App = () => {
             {msg.isUser && (
               <View style={[styles.avatarContainer, styles.userAvatarBackground]}>
                 {/* User icon - using inline SVG */}
-                <PersonIcon size={24} color="#FFF" />
+                <PersonIcon size={24} /> {/* Removed color prop */}
               </View>
             )}
           </View>
@@ -264,7 +266,7 @@ const App = () => {
         {isLoading && (
           <View style={[styles.messageBubbleContainer, styles.botMessageContainer]}>
             <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
-              <CowboyHatIcon size={24} color="#FFF" />
+              <CowboyHatIcon size={24} /> {/* Removed color prop */}
             </View>
             <View style={styles.messageBubble}>
               <Text style={styles.messageText}>Thinking... hold your horses, partner!</Text>
@@ -276,7 +278,7 @@ const App = () => {
         {showImageNotSupported && (
           <View style={[styles.messageBubbleContainer, styles.botMessageContainer]}>
             <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
-              <CowboyHatIcon size={24} color="#FFF" />
+              <CowboyHatIcon size={24} /> {/* Removed color prop */}
             </View>
             <View style={styles.messageBubble}>
               {/* Fixed: Escaped apostrophe in "isn't" */}
@@ -420,7 +422,6 @@ const styles = StyleSheet.create({
   userAvatarBackground: {
     backgroundColor: '#87CEEB', // Light blue background for user
   },
-  // Removed .avatar style as it's for Image, not SVG directly
   messageBubble: {
     padding: 12,
     borderRadius: 20, // Rounded corners for chat bubbles
