@@ -8,9 +8,80 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Image,
+  // Removed Image import as we are using SVG directly for avatars
   Platform // Used for platform-specific styling if needed
 } from 'react-native-web';
+
+// Helper component to format text with bolding and handle newlines
+const FormattedText = ({ text, style, boldStyle, errorStyle }) => {
+  const parts = text.split(/(\*\*.*?\*\*)/g); // Split by **bold text** retaining the delimiters
+
+  return (
+    <Text style={style}>
+      {parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          // Render bold text
+          return (
+            <Text key={index} style={boldStyle}>
+              {part.substring(2, part.length - 2)} {/* Remove ** */}
+            </Text>
+          );
+        } else {
+          // Render regular text, handling newlines if present
+          const lines = part.split('\n');
+          return lines.map((line, lineIndex) => (
+            <React.Fragment key={`${index}-${lineIndex}`}>
+              <Text style={errorStyle ? errorStyle : style}>{line}</Text>
+              {lineIndex < lines.length - 1 && <Text>{"\n"}</Text>} {/* Add newline for line breaks */}
+            </React.Fragment>
+          ));
+        }
+      })}
+    </Text>
+  );
+};
+
+// SVG Icon for Chatbot (Cowboy Hat)
+const CowboyHatIcon = ({ size = 24, color = '#FFFFFF' }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path d="M12 2C8.68629 2 6 4.68629 6 8V9C6 9.55228 6.44772 10 7 10H17C17.5523 10 18 9.55228 18 9V8C18 4.68629 15.3137 2 12 2Z" fill="#333" />
+    <path d="M4 10C4 10.5523 4.44772 11 5 11H19C19.5523 11 20 10.5523 20 10V11.5C20 12.0523 19.5523 12.5 19 12.5H5C4.44772 12.5 4 12.0523 4 11.5V10Z" fill="#333" />
+    <path d="M22 10V12C22 12.5523 21.5523 13 21 13H3C2.44772 13 2 12.5523 2 12V10C2 9.44772 2.44772 9 3 9H21C21.5523 9 22 9.44772 22 10Z" fill="#333" />
+    <path d="M12 13C8.68629 13 6 15.6863 6 19V20C6 20.5523 6.44772 21 7 21H17C17.5523 21 18 20.5523 18 20V19C18 15.6863 15.3137 13 12 13Z" fill="#555" />
+  </svg>
+);
+
+// SVG Icon for User (Person Outline)
+const PersonIcon = ({ size = 24, color = '#FFFFFF' }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"
+      stroke="#333"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M12 14C7.79186 14 4.38075 16.5888 4.02097 20.6582C3.96866 21.229 4.41738 22 5.0004 22H19.0004C19.5834 22 20.0321 21.229 19.9798 20.6582C19.62 16.5888 16.2089 14 12 14Z"
+      stroke="#333"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
 
 // Main App Component
 const App = () => {
@@ -89,35 +160,17 @@ const App = () => {
 
   // Function to handle image upload (simulated for V1)
   const handleImageUpload = () => {
-    // In a real app, this would trigger file input:
-    // const input = document.createElement('input');
-    // input.type = 'file';
-    // input.accept = 'image/*';
-    // input.onchange = (e) => {
-    //   const file = e.target.files[0];
-    //   if (file) {
-    //     const reader = new FileReader();
-    //     reader.onloadend = () => {
-    //       // Simulate showing thumbnail
-    //       const thumbnailUrl = reader.result;
-    //       setMessages((prevMessages) => [
-    //         ...prevMessages,
-    //         { imageUrl: thumbnailUrl, isUser: true, isImage: true },
-    //       ]);
-    //       setShowImageNotSupported(true); // Show the specific message
-    //       // After a delay, hide the message
-    //       setTimeout(() => setShowImageNotSupported(false), 5000);
-    //     };
-    //     reader.readAsDataURL(file);
-    //   }
-    // };
-    // input.click();
-
     // For V1, we simulate an image being selected and show a placeholder
-    const dummyImageUrl = "https://placehold.co/100x75/007bff/ffffff?text=Menu";
+    // Using a base64 encoded SVG for the placeholder thumbnail to ensure it always shows
+    const dummyImageSvgBase64 = "data:image/svg+xml;base64," + btoa(`
+      <svg width="100" height="75" viewBox="0 0 100 75" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100" height="75" fill="#007bff" rx="10"/>
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="20" fill="#ffffff">Menu</text>
+      </svg>
+    `);
     setMessages((prevMessages) => [
       ...prevMessages,
-      { imageUrl: dummyImageUrl, isUser: true, isImage: true },
+      { imageUrl: dummyImageSvgBase64, isUser: true, isImage: true },
     ]);
     setShowImageNotSupported(true); // Show the specific message
     setTimeout(() => setShowImageNotSupported(false), 5000); // Hide after 5 seconds
@@ -140,7 +193,7 @@ const App = () => {
       <View style={styles.header}>
         {/* Top Left Icon Placeholder */}
         <View style={styles.headerIconLeft}>
-          {/* You can replace this with your actual icon later */}
+          {/* Using a star emoji for the icon as requested initially */}
           <Text style={styles.placeholderIconText}>&#x2B50;</Text>
         </View>
         {/* Top Middle Title */}
@@ -167,14 +220,9 @@ const App = () => {
             ]}
           >
             {!msg.isUser && (
-              <View style={styles.avatarContainer}>
-                {/* Chatbot logo placeholder (Woody) */}
-                <Image
-                  source={{ uri: "https://placehold.co/40x40/FFD700/000000?text=🤠" }} // Placeholder for Woody's icon
-                  style={styles.avatar}
-                  accessibilityLabel="Chatbot avatar" // Added alt prop
-                  onError={(e) => console.log('Image failed to load:', e.nativeEvent.error)}
-                />
+              <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
+                {/* Chatbot logo (Woody) - using inline SVG */}
+                <CowboyHatIcon size={24} color="#FFF" />
               </View>
             )}
             <View
@@ -185,27 +233,28 @@ const App = () => {
               ]}
             >
               {msg.isImage && msg.imageUrl ? (
+                // Use a standard Image component for the thumbnail,
+                // it will load the base64 SVG or external image if switched later.
                 <Image
                   source={{ uri: msg.imageUrl }}
                   style={styles.imageThumbnail}
-                  accessibilityLabel="Uploaded menu image thumbnail" // Added alt prop
+                  accessibilityLabel="Uploaded menu image thumbnail"
+                  alt="Uploaded menu image thumbnail"
                   onError={(e) => console.log('Thumbnail failed to load:', e.nativeEvent.error)}
                 />
               ) : (
-                <Text style={msg.isError ? styles.errorMessageText : styles.messageText}>
-                  {msg.text}
-                </Text>
+                <FormattedText
+                  text={msg.text}
+                  style={styles.messageText}
+                  boldStyle={styles.boldText}
+                  errorStyle={msg.isError ? styles.errorMessageText : null}
+                />
               )}
             </View>
             {msg.isUser && (
-              <View style={styles.avatarContainer}>
-                {/* User icon placeholder */}
-                <Image
-                  source={{ uri: "https://placehold.co/40x40/87CEEB/000000?text=👤" }} // Placeholder for user icon
-                  style={styles.avatar}
-                  accessibilityLabel="User avatar" // Added alt prop
-                  onError={(e) => console.log('Image failed to load:', e.nativeEvent.error)}
-                />
+              <View style={[styles.avatarContainer, styles.userAvatarBackground]}>
+                {/* User icon - using inline SVG */}
+                <PersonIcon size={24} color="#FFF" />
               </View>
             )}
           </View>
@@ -214,12 +263,8 @@ const App = () => {
         {/* Loading Indicator */}
         {isLoading && (
           <View style={[styles.messageBubbleContainer, styles.botMessageContainer]}>
-            <View style={styles.avatarContainer}>
-              <Image
-                source={{ uri: "https://placehold.co/40x40/FFD700/000000?text=🤠" }}
-                style={styles.avatar}
-                accessibilityLabel="Chatbot icon indicating loading" // Added alt prop
-              />
+            <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
+              <CowboyHatIcon size={24} color="#FFF" />
             </View>
             <View style={styles.messageBubble}>
               <Text style={styles.messageText}>Thinking... hold your horses, partner!</Text>
@@ -230,12 +275,8 @@ const App = () => {
         {/* Static message for image upload not supported */}
         {showImageNotSupported && (
           <View style={[styles.messageBubbleContainer, styles.botMessageContainer]}>
-            <View style={styles.avatarContainer}>
-              <Image
-                source={{ uri: "https://placehold.co/40x40/FFD700/000000?text=🤠" }}
-                style={styles.avatar}
-                accessibilityLabel="Chatbot icon" // Added alt prop
-              />
+            <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
+              <CowboyHatIcon size={24} color="#FFF" />
             </View>
             <View style={styles.messageBubble}>
               {/* Fixed: Escaped apostrophe in "isn't" */}
@@ -369,12 +410,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden', // Ensure avatar is circular
     marginHorizontal: 8,
+    alignItems: 'center', // Center SVG content
+    justifyContent: 'center', // Center SVG content
   },
-  avatar: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+  // New backgrounds for avatars
+  botAvatarBackground: {
+    backgroundColor: '#FFD700', // Gold background for Woody
   },
+  userAvatarBackground: {
+    backgroundColor: '#87CEEB', // Light blue background for user
+  },
+  // Removed .avatar style as it's for Image, not SVG directly
   messageBubble: {
     padding: 12,
     borderRadius: 20, // Rounded corners for chat bubbles
@@ -389,6 +435,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22, // Better readability
     fontFamily: 'Inter, sans-serif',
+  },
+  boldText: {
+    fontWeight: 'bold', // Style for bold text
   },
   errorMessageText: {
     fontSize: 16,

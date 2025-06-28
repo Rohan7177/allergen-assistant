@@ -25,12 +25,18 @@ export async function POST(request) {
 
   try {
     // Select the generative model.
-    // Changing from "gemini-pro" or "gemini-1.0-pro" to "gemini-1.0-flash" for a simpler, potentially faster, free model.
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     // Construct the prompt for the LLM
-    // This prompt defines the persona, tone, and specific information required.
-    const prompt = `You are a food expert who loves to help folks find out what's in their grub, with a rootin' tootin' fun tone, just like Woody from Toy Story! When given a dish name, tell me all about it in about 100 words: its origin story, why it's so darn popular, and then, the most important part, identify any common food allergens like peanuts, tree nuts, milk, fish, shellfish, egg, soy, wheat, and gluten. Don't forget to keep it light and friendly, partner! The dish name is: "${dishName}"`;
+    // Modified prompt: Reduced history talk, emphasized bulleted list for allergens.
+    // Changed bullet point instruction to use '•' character.
+    const prompt = `You are a food expert who helps people find allergens, speaking with a fun tone like Woody from Toy Story.
+When given a dish name, first provide a brief (around 50 words) description of the dish, its origin, and popularity.
+Then, **in a clear, bulleted list, using the '• ' character, identify common food allergens** for the dish.
+Ensure each allergen is on a new line. Focus on these allergens: peanuts, tree nuts, milk, fish, shellfish, egg, soy, wheat, and gluten.
+Keep your response concise and directly address the allergens.
+
+The dish name is: "${dishName}"`;
 
     // Generate content using the model
     const result = await model.generateContent(prompt);
@@ -43,7 +49,7 @@ export async function POST(request) {
     console.error("Error communicating with Gemini LLM:", error);
     // Return a user-friendly error message
     return NextResponse.json(
-      { message: "Whoops! Looks like my lasso got tangled. Couldn't fetch that info right now. Try again, partner!", error: error.message },
+      { message: "Whoops! Looks like my lasso got tangled. Couldn&#39;t fetch that info right now. Try again, partner!", error: error.message },
       { status: 500 }
     );
   }
