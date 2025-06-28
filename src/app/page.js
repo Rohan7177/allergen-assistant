@@ -14,7 +14,7 @@ import {
 
 // Helper component to format text with bolding and handle newlines
 const FormattedText = ({ text, style, boldStyle, errorStyle }) => {
-  const parts = text.split(/(\*\*.*?\*\*)/g); // GSplit by **bold text** retaining the delimiters
+  const parts = text.split(/(\*\*.*?\*\*)/g); // Split by **bold text** retaining the delimiters
 
   return (
     <Text style={style}>
@@ -188,7 +188,8 @@ const App = () => {
   };
 
   return (
-    // Main container now uses flex column to stack header, scrollable content, and footer
+    // Main container now uses absolute positioning to fill the entire parent (body/html)
+    // This provides a robust base for flexbox children across devices.
     <View style={styles.container}>
       {/* Header Section - Fixed at the top */}
       <View style={styles.header}>
@@ -204,7 +205,7 @@ const App = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Chat Interface - This takes up all available vertical space */}
+      {/* Chat Interface - This takes up all available vertical space between header and input tray */}
       <ScrollView
         ref={scrollViewRef}
         style={styles.chatArea}
@@ -313,11 +314,16 @@ const App = () => {
 // Stylesheet for the components
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flex: 1, // This is key for flexbox to work.
     flexDirection: 'column', // Stack children vertically
     backgroundColor: '#F8F8F8', // Light background
-    height: '100vh', // Reverted: Ensures the container takes full viewport height
-    // Responsive padding for different screen sizes - now applies to the overall container
+    // IMPORTANT for reliable full-screen flexbox layout:
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    // Responsive padding for different screen sizes
     paddingHorizontal: Platform.select({
       web: {
         small: 10, // Mobile
@@ -379,7 +385,7 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   chatArea: {
-    flex: 1, // Takes up all remaining space
+    flex: 1, // Takes up all remaining space between header and input
   },
   chatContentContainer: {
     paddingVertical: 10, // Add some top/bottom padding within the scrollable content
