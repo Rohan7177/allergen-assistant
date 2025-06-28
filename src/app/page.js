@@ -8,13 +8,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Image, // Re-imported Image component for thumbnail
+  Image,
   Platform // Used for platform-specific styling if needed
 } from 'react-native-web';
 
 // Helper component to format text with bolding and handle newlines
 const FormattedText = ({ text, style, boldStyle, errorStyle }) => {
-  const parts = text.split(/(\*\*.*?\*\*)/g); // Split by **bold text** retaining the delimiters
+  const parts = text.split(/(\*\*.*?\*\*)/g); // GSplit by **bold text** retaining the delimiters
 
   return (
     <Text style={style}>
@@ -42,7 +42,6 @@ const FormattedText = ({ text, style, boldStyle, errorStyle }) => {
 };
 
 // SVG Icon for Chatbot (Cowboy Hat)
-// Removed 'color' prop as it was unused and causing a build error
 const CowboyHatIcon = ({ size = 24 }) => (
   <svg
     width={size}
@@ -54,12 +53,11 @@ const CowboyHatIcon = ({ size = 24 }) => (
     <path d="M12 2C8.68629 2 6 4.68629 6 8V9C6 9.55228 6.44772 10 7 10H17C17.5523 10 18 9.55228 18 9V8C18 4.68629 15.3137 2 12 2Z" fill="#333" />
     <path d="M4 10C4 10.5523 4.44772 11 5 11H19C19.5523 11 20 10.5523 20 10V11.5C20 12.0523 19.5523 12.5 19 12.5H5C4.44772 12.5 4 12.0523 4 11.5V10Z" fill="#333" />
     <path d="M22 10V12C22 12.5523 21.5523 13 21 13H3C2.44772 13 2 12.5523 2 12V10C2 9.44772 2.44772 9 3 9H21C21.5523 9 22 9.44772 22 10Z" fill="#333" />
-    <path d="M12 13C8.68629 13 6 15.6863 6 19V20C6 20.5523 6.44772 21 7 21H17C17.5523 21 18 20.5523 18 20V19C18 15.6863 15.3137 13 12 13Z" fill="#555" />
+    <path d="M12 13C8.68629 13 6 15.68629 6 19V20C6 20.55228 6.44772 21 7 21H17C17.5523 21 18 20.55228 18 20V19C18 15.68629 15.3137 13 12 13Z" fill="#555" />
   </svg>
 );
 
 // SVG Icon for User (Person Outline)
-// Removed 'color' prop as it was unused and causing a build error
 const PersonIcon = ({ size = 24 }) => (
   <svg
     width={size}
@@ -190,24 +188,23 @@ const App = () => {
   };
 
   return (
+    // Main container now uses flex column to stack header, scrollable content, and footer
     <View style={styles.container}>
-      {/* Header Section */}
+      {/* Header Section - Fixed at the top */}
       <View style={styles.header}>
         {/* Top Left Icon Placeholder */}
         <View style={styles.headerIconLeft}>
-          {/* Using a star emoji for the icon as requested initially */}
           <Text style={styles.placeholderIconText}>&#x2B50;</Text>
         </View>
         {/* Top Middle Title */}
         <Text style={styles.headerTitle}>Allergen Identifier</Text>
         {/* Top Right Clear Conversation Icon */}
         <TouchableOpacity onPress={handleClearConversation} style={styles.headerIconRight}>
-          {/* Refresh icon Unicode character */}
           <Text style={styles.refreshIcon}>&#x21BB;</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Chat Interface */}
+      {/* Chat Interface - This takes up all available vertical space */}
       <ScrollView
         ref={scrollViewRef}
         style={styles.chatArea}
@@ -223,20 +220,16 @@ const App = () => {
           >
             {!msg.isUser && (
               <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
-                {/* Chatbot logo (Woody) - using inline SVG */}
-                <CowboyHatIcon size={24} /> {/* Removed color prop */}
+                <CowboyHatIcon size={24} />
               </View>
             )}
             <View
               style={[
                 styles.messageBubble,
-                // Apply specific bubble styles based on sender
                 msg.isUser ? styles.userBubbleSpecific : styles.botBubbleSpecific,
               ]}
             >
               {msg.isImage && msg.imageUrl ? (
-                // Use a standard Image component for the thumbnail,
-                // it will load the base64 SVG or external image if switched later.
                 <Image
                   source={{ uri: msg.imageUrl }}
                   style={styles.imageThumbnail}
@@ -255,8 +248,7 @@ const App = () => {
             </View>
             {msg.isUser && (
               <View style={[styles.avatarContainer, styles.userAvatarBackground]}>
-                {/* User icon - using inline SVG */}
-                <PersonIcon size={24} /> {/* Removed color prop */}
+                <PersonIcon size={24} />
               </View>
             )}
           </View>
@@ -266,7 +258,7 @@ const App = () => {
         {isLoading && (
           <View style={[styles.messageBubbleContainer, styles.botMessageContainer]}>
             <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
-              <CowboyHatIcon size={24} /> {/* Removed color prop */}
+              <CowboyHatIcon size={24} />
             </View>
             <View style={styles.messageBubble}>
               <Text style={styles.messageText}>Thinking... hold your horses, partner!</Text>
@@ -278,17 +270,16 @@ const App = () => {
         {showImageNotSupported && (
           <View style={[styles.messageBubbleContainer, styles.botMessageContainer]}>
             <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
-              <CowboyHatIcon size={24} /> {/* Removed color prop */}
+              <CowboyHatIcon size={24} />
             </View>
             <View style={styles.messageBubble}>
-              {/* Fixed: Escaped apostrophe in "isn't" */}
               <Text style={styles.messageText}>Hold on there, partner! Menu upload using a photo isn&#39;t supported just yet, but stay tuned!</Text>
             </View>
           </View>
         )}
       </ScrollView>
 
-      {/* Bottom Input Tray */}
+      {/* Bottom Input Tray - Fixed at the bottom */}
       <View style={styles.inputTray}>
         {/* Plus Button for Image */}
         <TouchableOpacity onPress={handleImageUpload} style={styles.plusButton}>
@@ -323,8 +314,10 @@ const App = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    flexDirection: 'column', // Stack children vertically
     backgroundColor: '#F8F8F8', // Light background
-    // Responsive padding for different screen sizes
+    height: '100vh', // Reverted: Ensures the container takes full viewport height
+    // Responsive padding for different screen sizes - now applies to the overall container
     paddingHorizontal: Platform.select({
       web: {
         small: 10, // Mobile
@@ -333,8 +326,6 @@ const styles = StyleSheet.create({
       },
       default: 10, // Fallback for other platforms
     }),
-    paddingTop: 10,
-    paddingBottom: 20, // Enough space for input tray
     maxWidth: 800, // Max width for desktop
     alignSelf: 'center', // Center the app on larger screens
     width: '100%',
@@ -344,17 +335,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 15,
+    height: 70, // Fixed height for header
     borderBottomWidth: 1,
     borderBottomColor: '#EEE',
     backgroundColor: '#FFFFFF', // White header background
     borderRadius: 15,
     paddingHorizontal: 15,
-    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    marginBottom: 10, // Small gap between header and messages
   },
   headerIconLeft: {
     width: 40,
@@ -372,7 +364,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
-    fontFamily: 'Inter, sans-serif', // Using Inter font if available
+    fontFamily: 'Inter, sans-serif',
   },
   headerIconRight: {
     width: 40,
@@ -387,45 +379,44 @@ const styles = StyleSheet.create({
     color: '#555',
   },
   chatArea: {
-    flex: 1,
-    paddingVertical: 10,
+    flex: 1, // Takes up all remaining space
   },
   chatContentContainer: {
-    paddingBottom: 20, // Give some padding at the bottom of the scroll view
+    paddingVertical: 10, // Add some top/bottom padding within the scrollable content
+    paddingBottom: 20, // Give some padding at the very bottom of the scroll view
   },
   messageBubbleContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end', // Align avatars to bottom of bubble
+    alignItems: 'flex-end',
     marginVertical: 5,
   },
   userMessageContainer: {
-    alignSelf: 'flex-end', // Align user messages to the right
-    marginLeft: 'auto', // Push to the right
+    alignSelf: 'flex-end',
+    marginLeft: 'auto',
   },
   botMessageContainer: {
-    alignSelf: 'flex-start', // Align bot messages to the left
-    marginRight: 'auto', // Push to the left
+    alignSelf: 'flex-start',
+    marginRight: 'auto',
   },
   avatarContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    overflow: 'hidden', // Ensure avatar is circular
+    overflow: 'hidden',
     marginHorizontal: 8,
-    alignItems: 'center', // Center SVG content
-    justifyContent: 'center', // Center SVG content
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  // New backgrounds for avatars
   botAvatarBackground: {
-    backgroundColor: '#FFD700', // Gold background for Woody
+    backgroundColor: '#FFD700',
   },
   userAvatarBackground: {
-    backgroundColor: '#87CEEB', // Light blue background for user
+    backgroundColor: '#87CEEB',
   },
   messageBubble: {
     padding: 12,
-    borderRadius: 20, // Rounded corners for chat bubbles
-    maxWidth: '75%', // Limit bubble width
+    borderRadius: 20,
+    maxWidth: '75%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -434,42 +425,42 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 16,
-    lineHeight: 22, // Better readability
+    lineHeight: 22,
     fontFamily: 'Inter, sans-serif',
   },
   boldText: {
-    fontWeight: 'bold', // Style for bold text
+    fontWeight: 'bold',
   },
   errorMessageText: {
     fontSize: 16,
     lineHeight: 22,
-    color: '#D32F2F', // Red for errors
+    color: '#D32F2F',
     fontFamily: 'Inter, sans-serif',
   },
   imageThumbnail: {
-    width: 150, // Fixed width for thumbnail
-    height: 100, // Fixed height for thumbnail
+    width: 150,
+    height: 100,
     borderRadius: 10,
     resizeMode: 'cover',
     marginVertical: 5,
   },
-  // NEW STYLES: Apply background color and specific corner radius conditionally
   userBubbleSpecific: {
-    backgroundColor: '#DCF8C6', // Light green for user messages
-    borderBottomRightRadius: 5, // Pointed corner for user
+    backgroundColor: '#DCF8C6',
+    borderBottomRightRadius: 5,
   },
   botBubbleSpecific: {
-    backgroundColor: '#E5E5EA', // Light gray for bot messages
-    borderBottomLeftRadius: 5, // Pointed corner for bot
+    backgroundColor: '#E5E5EA',
+    borderBottomLeftRadius: 5,
   },
   inputTray: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
+    height: 70, // Fixed height for input tray
     paddingHorizontal: 15,
-    backgroundColor: '#FFFFFF', // White background for input tray
-    borderRadius: 25, // More rounded tray
-    marginTop: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 25,
+    marginTop: 10, // Small gap between messages and input
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.15,
@@ -480,7 +471,7 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    backgroundColor: '#007AFF', // Blue color for plus button
+    backgroundColor: '#007AFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -493,13 +484,13 @@ const styles = StyleSheet.create({
   plusButtonText: {
     color: '#FFFFFF',
     fontSize: 28,
-    lineHeight: 28, // Adjust line height for vertical centering
+    lineHeight: 28,
     fontWeight: 'bold',
   },
   textInput: {
     flex: 1,
     height: 45,
-    backgroundColor: '#F0F0F0', // Light gray input background
+    backgroundColor: '#F0F0F0',
     borderRadius: 22.5,
     paddingHorizontal: 15,
     fontSize: 16,
@@ -512,7 +503,7 @@ const styles = StyleSheet.create({
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    backgroundColor: '#00C853', // Green color for send button
+    backgroundColor: '#00C853',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 10,
@@ -525,7 +516,7 @@ const styles = StyleSheet.create({
   sendButtonText: {
     color: '#FFFFFF',
     fontSize: 22,
-    lineHeight: 22, // Adjust line height for vertical centering
+    lineHeight: 22,
     fontWeight: 'bold',
   },
 });
