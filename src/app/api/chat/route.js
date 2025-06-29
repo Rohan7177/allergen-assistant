@@ -28,13 +28,13 @@ export async function POST(request) {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     // Construct the prompt for the LLM
-    // Modified prompt: Reduced history talk, emphasized bulleted list for allergens.
-    // Changed bullet point instruction to use '•' character.
+    // Modified prompt: Now asks for specific cross-contamination likelihood for the dish, plus general warning.
     const prompt = `You are a food expert who helps people find allergens, speaking with a fun tone like Woody from Toy Story.
 When given a dish name, first provide a brief (around 50 words) description of the dish, its origin, and popularity.
 Then, **in a clear, bulleted list, using the '• ' character, identify common food allergens** for the dish.
 Ensure each allergen is on a new line. Focus on these allergens: peanuts, tree nuts, milk, fish, shellfish, egg, soy, wheat, and gluten.
-Keep your response concise and directly address the allergens.
+After the bulleted list of allergens, **assess the specific dish's likelihood of cross-contamination (e.g., high, low, or moderate) based on common kitchen practices and ingredients, then provide a general warning about cross-contamination in shared kitchen environments,** and always advise the user to confirm with the establishment.
+Keep your response concise and directly address the allergens and cross-contamination.
 
 The dish name is: "${dishName}"`;
 
