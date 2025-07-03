@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Image,
+  Image, // Keep Image component for displaying captured thumbnails
   Platform // Used for platform-specific styling if needed
 } from 'react-native-web';
 
@@ -101,6 +101,9 @@ const App = () => {
   const typingIntervalRef = useRef(null);
   const fullBotResponseRef = useRef(''); // Ref to store the full bot response for typing
 
+  // Ref for the hidden file input element
+  const fileInputRef = useRef(null);
+
   // Auto-scroll to bottom whenever messages change
   useEffect(() => {
     if (scrollViewRef.current) {
@@ -140,6 +143,8 @@ const App = () => {
         msg.isBot && !msg.isTypingComplete ? { ...msg, text: fullBotResponseRef.current, isTypingComplete: true } : msg
       ));
     }
+    // Hide the "image not supported" message if a new text message is sent
+    setShowImageNotSupported(false);
 
     setMessages((prevMessages) => [...prevMessages, newUserMessage]);
     setInputMessage(''); // Clear input field
@@ -202,7 +207,7 @@ const App = () => {
     }
   };
 
-  // Function to handle image upload (simulated for V1)
+  // Function to handle image upload (triggers hidden file input)
   const handleImageUpload = () => {
     // Clear any ongoing typing effect when a new user message (image) is sent
     if (typingIntervalRef.current) {
@@ -213,20 +218,30 @@ const App = () => {
       ));
     }
 
-    // For V1, we simulate an image being selected and show a placeholder
-    // Using a base64 encoded SVG for the placeholder thumbnail to ensure it always shows
-    const dummyImageSvgBase64 = "data:image/svg+xml;base64," + btoa(`
-      <svg width="100" height="75" viewBox="0 0 100 75" xmlns="http://www.w3.org/2000/svg">
-        <rect width="100" height="75" fill="#007bff" rx="10"/>
-        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="20" fill="#ffffff">Menu</text>
-      </svg>
-    `);
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      { imageUrl: dummyImageSvgBase64, isUser: true, isImage: true, isTypingComplete: true },
-    ]);
-    setShowImageNotSupported(true); // Show the specific message
-    setTimeout(() => setShowImageNotSupported(false), 5000); // Hide after 5 seconds
+    // Trigger the hidden file input click
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  // Function to handle file selection from the hidden input
+  const handleFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const imageDataUrl = reader.result; // This will be the base64 string
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { imageUrl: imageDataUrl, isUser: true, isImage: true, isTypingComplete: true },
+        ]);
+        setShowImageNotSupported(true); // Show the specific message
+        // Removed the setTimeout here, so the message will not disappear automatically
+      };
+      reader.readAsDataURL(file);
+    }
+    // Clear the input value to allow selecting the same file again
+    event.target.value = '';
   };
 
   // Function to clear all messages
@@ -242,12 +257,22 @@ const App = () => {
     setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
     setDisplayMessage(''); // Clear display message state
     fullBotResponseRef.current = ''; // Clear stored full response
+    setShowImageNotSupported(false); // Also hide the image not supported message on clear
   };
 
   return (
     // Main container now uses absolute positioning to fill the entire parent (body/html)
     // This provides a robust base for flexbox children across devices.
     <View style={styles.container}>
+      {/* Hidden file input for image selection */}
+      <input
+        type="file"
+        accept="image/*" // Accept only image files
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        style={{ display: 'none' }} // Hide the input element visually
+      />
+
       {/* Header Section - Fixed at the top */}
       <View style={styles.header}>
         {/* Top Left Icon Placeholder */}
