@@ -108,14 +108,15 @@ const App = () => {
     }
   }, [messages, displayMessage]); // Added displayMessage as a dependency
 
-  // Initial greeting message from Woody the chatbot - now instant
+  // Initial greeting message from Alton Brown - now instant
   useEffect(() => {
     // Clear any existing intervals if the component re-renders (good practice)
     if (typingIntervalRef.current) {
       clearInterval(typingIntervalRef.current);
       typingIntervalRef.current = null;
     }
-    const initialText = "Howdy partner! What delicious dish are you curious about today? You can type its name or even send me a photo of a menu!";
+    // Changed initial greeting to Alton Brown's persona
+    const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or perhaps, in the future, you'll be able to show me a menu!";
     // Set the initial message instantly without typing effect
     setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
     // Reset typing states
@@ -189,8 +190,8 @@ const App = () => {
       // Add error message directly (no typing effect for errors for simplicity)
       setMessages((prevMessages) => [
         ...prevMessages,
-        // Fixed: Escaped apostrophe in "Couldn't"
-        { text: "Whoops! Looks like my lasso got tangled. Couldn&#39;t fetch that info right now. Try again, partner!", isUser: false, isBot: true, isError: true, isTypingComplete: true },
+        // Updated error message for Alton Brown's persona
+        { text: "A culinary misstep has occurred! It seems there's a glitch in our data stream, and I couldn&#39;t quite retrieve that information. Let's try that again, shall we?", isUser: false, isBot: true, isError: true, isTypingComplete: true },
       ]);
       if (typingIntervalRef.current) { // Clear interval if an error occurred during typing
         clearInterval(typingIntervalRef.current);
@@ -235,7 +236,8 @@ const App = () => {
       clearInterval(typingIntervalRef.current);
       typingIntervalRef.current = null;
     }
-    const initialText = "Howdy partner! What delicious dish are you curious about today? You can type its name or even send me a photo of a menu!";
+    // Changed initial greeting to Alton Brown's persona
+    const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or perhaps, in the future, you'll be able to show me a menu!";
     // Reset the initial greeting to be instant again
     setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
     setDisplayMessage(''); // Clear display message state
@@ -322,7 +324,8 @@ const App = () => {
               <CowboyHatIcon size={24} />
             </View>
             <View style={styles.messageBubble}>
-              <Text style={styles.messageText}>Thinking... hold your horses, partner!</Text>
+              {/* Updated loading message for Alton Brown's persona */}
+              <Text style={styles.messageText}>Calibrating culinary calculations... Stand by!</Text>
             </View>
           </View>
         )}
@@ -334,7 +337,8 @@ const App = () => {
               <CowboyHatIcon size={24} />
             </View>
             <View style={styles.messageBubble}>
-              <Text style={styles.messageText}>Hold on there, partner! Menu upload using a photo isn&#39;t supported just yet, but stay tuned!</Text>
+              {/* Updated message for image upload not supported */}
+              <Text style={styles.messageText}>My apologies, aspiring food detective! Direct menu analysis via photo is a feature still under development. For now, let&#39;s stick to text entry. Stay tuned for future advancements in culinary technology!</Text>
             </View>
           </View>
         )}
@@ -355,7 +359,7 @@ const App = () => {
           value={inputMessage}
           onChangeText={setInputMessage}
           onSubmitEditing={handleSendTextMessage} // Allows sending with Enter key
-          returnKeyKeyType="send"
+          returnKeyType="send"
         />
 
         {/* Send Button */}

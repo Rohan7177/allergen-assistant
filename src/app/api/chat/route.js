@@ -28,8 +28,8 @@ export async function POST(request) {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     // Construct the prompt for the LLM
-    // Modified prompt: Now asks for specific cross-contamination likelihood for the dish, plus general warning.
-    const prompt = `You are a food expert who helps people find allergens, speaking with a fun tone like Woody from Toy Story.
+    // Updated prompt to match the user's request for Alton Brown persona and cross-contamination details.
+    const prompt = `You are a food expert who helps people find allergens, speaking in a charismatic style like Alton Brown from the Food Network.
 When given a dish name, first provide a brief (around 50 words) description of the dish, its origin, and popularity.
 Then, **in a clear, bulleted list, using the '• ' character, identify common food allergens** for the dish.
 Ensure each allergen is on a new line. Focus on these allergens: peanuts, tree nuts, milk, fish, shellfish, egg, soy, wheat, and gluten.
@@ -49,7 +49,7 @@ The dish name is: "${dishName}"`;
     console.error("Error communicating with Gemini LLM:", error);
     // Return a user-friendly error message
     return NextResponse.json(
-      { message: "Whoops! Looks like my lasso got tangled. Couldn&#39;t fetch that info right now. Try again, partner!", error: error.message },
+      { message: "A culinary misstep has occurred! It seems there's a glitch in our data stream, and I couldn&#39;t quite retrieve that information. Let's try that again, shall we?", error: error.message },
       { status: 500 }
     );
   }
