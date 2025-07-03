@@ -83,10 +83,10 @@ const App = () => {
   // State to manage loading indicator during LLM call
   const [isLoading, setIsLoading] = useState(false);
 
-  // New state for typewriter effect
-  const [displayMessage, setDisplayMessage] = useState('');
-  const typingIntervalRef = useRef(null);
-  const fullBotResponseRef = useRef(''); // Ref to store the full bot response for typing
+  // Removed displayMessage, typingIntervalRef, and fullBotResponseRef states
+  // const [displayMessage, setDisplayMessage] = useState('');
+  // const typingIntervalRef = useRef(null);
+  // const fullBotResponseRef = useRef(''); // Ref to store the full bot response for typing
 
   // Ref for the hidden file input element
   const fileInputRef = useRef(null);
@@ -96,22 +96,15 @@ const App = () => {
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollToEnd({ animated: true });
     }
-  }, [messages, displayMessage]); // Added displayMessage as a dependency
+  }, [messages]); // Removed displayMessage from dependency array
 
   // Initial greeting message from Alton Brown - now instant
   useEffect(() => {
-    // Clear any existing intervals if the component re-renders (good practice)
-    if (typingIntervalRef.current) {
-      clearInterval(typingIntervalRef.current);
-      typingIntervalRef.current = null;
-    }
-    // Changed initial greeting to Alton Brown's persona - REMOVED FUTURE PHOTO MESSAGE
+    // No more clearing typing intervals here as it's removed
     const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
     // Set the initial message instantly without typing effect
     setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
-    // Reset typing states
-    setDisplayMessage('');
-    fullBotResponseRef.current = '';
+    // No more resetting typing states here
   }, []); // Run once on component mount
 
   // Function to handle sending a text message (dish name)
@@ -121,16 +114,7 @@ const App = () => {
 
     // Add user's message to chat immediately
     const newUserMessage = { text: text, isUser: true };
-    // Clear any ongoing typing effect when a new user message is sent
-    if (typingIntervalRef.current) {
-      clearInterval(typingIntervalRef.current);
-      typingIntervalRef.current = null;
-      // Ensure the last bot message is marked as complete if it was interrupted
-      setMessages(prevMessages => prevMessages.map(msg =>
-        msg.isBot && !msg.isTypingComplete ? { ...msg, text: fullBotResponseRef.current, isTypingComplete: true } : msg
-      ));
-    }
-
+    // No more clearing typing effect for text messages
     setMessages((prevMessages) => [...prevMessages, newUserMessage]);
     setInputMessage(''); // Clear input field
 
@@ -153,27 +137,11 @@ const App = () => {
       const data = await response.json();
       const botResponseText = data.response;
 
-      // Add a new empty message for the bot to start typing into
-      setMessages((prevMessages) => [...prevMessages, { text: '', isUser: false, isBot: true, isTypingComplete: false }]);
-      fullBotResponseRef.current = botResponseText; // Store full response
-
-      setDisplayMessage(''); // Reset display message for new typing
-      let charIndex = 0;
-      // Faster typing speed (e.g., 15ms per character instead of 25ms)
-      typingIntervalRef.current = setInterval(() => {
-        if (charIndex < botResponseText.length) {
-          setDisplayMessage(prev => prev + botResponseText.charAt(charIndex));
-          charIndex++;
-        } else {
-          clearInterval(typingIntervalRef.current);
-          typingIntervalRef.current = null;
-          // Update the last bot message in 'messages' state with the complete text
-          setMessages(prevMessages => prevMessages.map((msg, idx) =>
-            idx === prevMessages.length - 1 ? { ...msg, text: botResponseText, isTypingComplete: true } : msg
-          ));
-        }
-      }, 15); // Typing speed in milliseconds per character (made faster)
-
+      // Directly set the bot's response without typing effect
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { text: botResponseText, isUser: false, isBot: true, isTypingComplete: true },
+      ]);
 
     } catch (error) {
       console.error("Failed to fetch from LLM:", error);
@@ -183,10 +151,7 @@ const App = () => {
         // Updated error message for Alton Brown's persona
         { text: "A culinary misstep has occurred! It seems there's a glitch in our data stream, and I couldn&#39;t quite retrieve that information. Let's try that again, shall we?", isUser: false, isBot: true, isError: true, isTypingComplete: true },
       ]);
-      if (typingIntervalRef.current) { // Clear interval if an error occurred during typing
-        clearInterval(typingIntervalRef.current);
-        typingIntervalRef.current = null;
-      }
+      // No more clearing typing interval here
     } finally {
       setIsLoading(false); // Hide loading indicator
     }
@@ -194,15 +159,7 @@ const App = () => {
 
   // Function to handle image upload (triggers hidden file input)
   const handleImageUpload = () => {
-    // Clear any ongoing typing effect when a new user message (image) is sent
-    if (typingIntervalRef.current) {
-      clearInterval(typingIntervalRef.current);
-      typingIntervalRef.current = null;
-      setMessages(prevMessages => prevMessages.map(msg =>
-        msg.isBot && !msg.isTypingComplete ? { ...msg, text: fullBotResponseRef.current, isTypingComplete: true } : msg
-      ));
-    }
-
+    // No more clearing typing effect for image messages
     // Trigger the hidden file input click
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -252,7 +209,6 @@ const App = () => {
               ...prevMessages,
               { text: botResponseText, isUser: false, isBot: true, isTypingComplete: true }, // Directly set full text
             ]);
-            // No need for fullBotResponseRef, displayMessage, or typingIntervalRef for image responses
           }
         } catch (error) {
           console.error("Failed to process image:", error);
@@ -260,7 +216,6 @@ const App = () => {
             ...prevMessages,
             { text: "Menu recognition failed. It seems there was a technical glitch in analyzing the image. Please try again!", isUser: false, isBot: true, isError: true, isTypingComplete: true },
           ]);
-          // No need to clear typingIntervalRef here as it's not used for image responses
         } finally {
           setIsLoading(false); // Hide loading indicator
         }
@@ -273,17 +228,11 @@ const App = () => {
 
   // Function to clear all messages
   const handleClearConversation = () => {
-    // Clear any existing intervals
-    if (typingIntervalRef.current) {
-      clearInterval(typingIntervalRef.current);
-      typingIntervalRef.current = null;
-    }
-    // Changed initial greeting to Alton Brown's persona - REMOVED FUTURE PHOTO MESSAGE
+    // No more clearing typing intervals here
     const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
     // Reset the initial greeting to be instant again
     setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
-    setDisplayMessage(''); // Clear display message state
-    fullBotResponseRef.current = ''; // Clear stored full response
+    // No more clearing display message state or full bot response ref
   };
 
   return (
@@ -347,13 +296,9 @@ const App = () => {
                   onError={(e) => console.log('Thumbnail failed to load:', e.nativeEvent.error)}
                 />
               ) : (
-                // Conditionally render the message being typed (for text) or the full message (for images)
-                // The last bot message in the array is the one potentially being typed.
+                // Always render the full message text directly
                 <FormattedText
-                  text={msg.isBot && index === messages.length - 1 && !msg.isTypingComplete
-                    ? displayMessage // For text-based streaming
-                    : msg.text // For instant display (image-based or completed text)
-                  }
+                  text={msg.text}
                   style={styles.messageText}
                   boldStyle={styles.boldText}
                   errorStyle={msg.isError ? styles.errorMessageText : null}
