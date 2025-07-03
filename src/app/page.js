@@ -41,20 +41,9 @@ const FormattedText = ({ text, style, boldStyle, errorStyle }) => {
   );
 };
 
-// SVG Icon for Chatbot (Cowboy Hat)
-const CowboyHatIcon = ({ size = 24 }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <path d="M12 2C8.68629 2 6 4.68629 6 8V9C6 9.55228 6.44772 10 7 10H17C17.5523 10 18 9.55228 18 9V8C18 4.68629 15.3137 2 12 2Z" fill="#333" />
-    <path d="M4 10C4 10.5523 4.44772 11 5 11H19C19.5523 11 20 10.5523 20 10V11.5C20 12.0523 19.5523 12.5 19 12.5H5C4.44772 12.5 4 12.0523 4 11.5V10Z" fill="#333" />
-    <path d="M22 10V12C22 12.5523 21.5523 13 21 13H3C2.44772 13 2 12.5523 2 12V10C2 9.44772 2.44772 9 3 9H21C21.5523 9 22 9.44772 22 10Z" fill="#333" />
-    <path d="M12 13C8.68629 13 6 15.68629 6 19V20C6 20.55228 6.44772 21 7 21H17C17.5523 21 18 20.55228 18 20V19C18 15.68629 15.3137 13 12 13Z" fill="#555" />
-  </svg>
+// SVG Icon for Chatbot (Chef Hat) - UPDATED to Chef Emoji
+const ChefHatIcon = ({ size = 24 }) => (
+  <Text style={{ fontSize: size, lineHeight: size, color: '#333' }}>👨‍🍳</Text>
 );
 
 // SVG Icon for User (Person Outline)
@@ -93,8 +82,6 @@ const App = () => {
   const scrollViewRef = useRef();
   // State to manage loading indicator during LLM call
   const [isLoading, setIsLoading] = useState(false);
-  // Removed showImageNotSupported state as it's no longer needed for a persistent message.
-  // const [showImageNotSupported, setShowImageNotSupported] = useState(false);
 
   // New state for typewriter effect
   const [displayMessage, setDisplayMessage] = useState('');
@@ -143,7 +130,6 @@ const App = () => {
         msg.isBot && !msg.isTypingComplete ? { ...msg, text: fullBotResponseRef.current, isTypingComplete: true } : msg
       ));
     }
-    // Removed setShowImageNotSupported(false) as the state is removed.
 
     setMessages((prevMessages) => [...prevMessages, newUserMessage]);
     setInputMessage(''); // Clear input field
@@ -224,7 +210,7 @@ const App = () => {
   };
 
   // Function to handle file selection from the hidden input
-  const handleFileChange = (event) => {
+  const handleFileChange = async (event) => {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
@@ -260,28 +246,13 @@ const App = () => {
               { text: errorMessage, isUser: false, isBot: true, isError: true, isTypingComplete: true },
             ]);
           } else {
-            // Success: Display the structured dish/allergen list
+            // Success: Display the structured dish/allergen list INSTANTLY (no typing effect)
             const botResponseText = data.response;
             setMessages((prevMessages) => [
               ...prevMessages,
-              { text: '', isUser: false, isBot: true, isTypingComplete: false }, // Add empty message for typing effect
+              { text: botResponseText, isUser: false, isBot: true, isTypingComplete: true }, // Directly set full text
             ]);
-            fullBotResponseRef.current = botResponseText; // Store full response
-
-            setDisplayMessage(''); // Reset display message for new typing
-            let charIndex = 0;
-            typingIntervalRef.current = setInterval(() => {
-              if (charIndex < botResponseText.length) {
-                setDisplayMessage(prev => prev + botResponseText.charAt(charIndex));
-                charIndex++;
-              } else {
-                clearInterval(typingIntervalRef.current);
-                typingIntervalRef.current = null;
-                setMessages(prevMessages => prevMessages.map((msg, idx) =>
-                  idx === prevMessages.length - 1 ? { ...msg, text: botResponseText, isTypingComplete: true } : msg
-                ));
-              }
-            }, 15); // Faster typing speed for results
+            // No need for fullBotResponseRef, displayMessage, or typingIntervalRef for image responses
           }
         } catch (error) {
           console.error("Failed to process image:", error);
@@ -289,10 +260,7 @@ const App = () => {
             ...prevMessages,
             { text: "Menu recognition failed. It seems there was a technical glitch in analyzing the image. Please try again!", isUser: false, isBot: true, isError: true, isTypingComplete: true },
           ]);
-          if (typingIntervalRef.current) {
-            clearInterval(typingIntervalRef.current);
-            typingIntervalRef.current = null;
-          }
+          // No need to clear typingIntervalRef here as it's not used for image responses
         } finally {
           setIsLoading(false); // Hide loading indicator
         }
@@ -361,7 +329,7 @@ const App = () => {
           >
             {!msg.isUser && (
               <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
-                <CowboyHatIcon size={24} />
+                <ChefHatIcon size={24} /> {/* Changed to ChefHatIcon */}
               </View>
             )}
             <View
@@ -379,12 +347,12 @@ const App = () => {
                   onError={(e) => console.log('Thumbnail failed to load:', e.nativeEvent.error)}
                 />
               ) : (
-                // Conditionally render the message being typed or the full message
+                // Conditionally render the message being typed (for text) or the full message (for images)
                 // The last bot message in the array is the one potentially being typed.
                 <FormattedText
                   text={msg.isBot && index === messages.length - 1 && !msg.isTypingComplete
-                    ? displayMessage
-                    : msg.text
+                    ? displayMessage // For text-based streaming
+                    : msg.text // For instant display (image-based or completed text)
                   }
                   style={styles.messageText}
                   boldStyle={styles.boldText}
@@ -404,7 +372,7 @@ const App = () => {
         {isLoading && (
           <View style={[styles.messageBubbleContainer, styles.botMessageContainer]}>
             <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
-              <CowboyHatIcon size={24} />
+              <ChefHatIcon size={24} /> {/* Changed to ChefHatIcon */}
             </View>
             <View style={styles.messageBubble}>
               {/* Updated loading message for Alton Brown's persona */}

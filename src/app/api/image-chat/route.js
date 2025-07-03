@@ -42,7 +42,7 @@ export async function POST(request) {
           
           **Output Format:**
           For each identified dish, output a single line in the format:
-          [Dish Name] - [List of Allergens, comma-separated]
+          **[Dish Name]** - [List of Allergens, comma-separated]
           
           If a dish has no common allergens from the list, state "No common allergens".
           List each dish on a new line.
