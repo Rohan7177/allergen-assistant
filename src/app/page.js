@@ -105,8 +105,8 @@ const App = () => {
       clearInterval(typingIntervalRef.current);
       typingIntervalRef.current = null;
     }
-    // Changed initial greeting to Alton Brown's persona
-    const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or perhaps, in the future, you'll be able to show me a menu!";
+    // Changed initial greeting to Alton Brown's persona - REMOVED FUTURE PHOTO MESSAGE
+    const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
     // Set the initial message instantly without typing effect
     setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
     // Reset typing states
@@ -278,8 +278,8 @@ const App = () => {
       clearInterval(typingIntervalRef.current);
       typingIntervalRef.current = null;
     }
-    // Changed initial greeting to Alton Brown's persona
-    const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or perhaps, in the future, you'll be able to show me a menu!";
+    // Changed initial greeting to Alton Brown's persona - REMOVED FUTURE PHOTO MESSAGE
+    const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
     // Reset the initial greeting to be instant again
     setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
     setDisplayMessage(''); // Clear display message state
@@ -589,12 +589,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 5,
     elevation: 6,
-  },
-  plusButtonText: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    lineHeight: 28,
-    fontWeight: 'bold',
   },
   textInput: {
     flex: 1,
