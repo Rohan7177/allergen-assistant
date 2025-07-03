@@ -93,8 +93,8 @@ const App = () => {
   const scrollViewRef = useRef();
   // State to manage loading indicator during LLM call
   const [isLoading, setIsLoading] = useState(false);
-  // State to manage visibility of "not supported" message for image upload
-  const [showImageNotSupported, setShowImageNotSupported] = useState(false);
+  // Removed showImageNotSupported state as it's no longer needed for a persistent message.
+  // const [showImageNotSupported, setShowImageNotSupported] = useState(false);
 
   // New state for typewriter effect
   const [displayMessage, setDisplayMessage] = useState('');
@@ -143,8 +143,7 @@ const App = () => {
         msg.isBot && !msg.isTypingComplete ? { ...msg, text: fullBotResponseRef.current, isTypingComplete: true } : msg
       ));
     }
-    // Hide the "image not supported" message if a new text message is sent
-    setShowImageNotSupported(false);
+    // Removed setShowImageNotSupported(false) as the state is removed.
 
     setMessages((prevMessages) => [...prevMessages, newUserMessage]);
     setInputMessage(''); // Clear input field
@@ -152,8 +151,8 @@ const App = () => {
     setIsLoading(true); // Show loading indicator
 
     try {
-      // Make API call to your Next.js backend
-      const response = await fetch('/api/chat', {
+      // Make API call to your Next.js backend for text-based dish name
+      const response = await fetch('/api/chat', { // This is the Gemini API route
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -229,14 +228,74 @@ const App = () => {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const imageDataUrl = reader.result; // This will be the base64 string
+      reader.onloadend = async () => { // Made onloadend async
+        const imageDataUrl = reader.result; // imageDataUrl is now correctly scoped here
+
+        // Display the image thumbnail immediately
         setMessages((prevMessages) => [
           ...prevMessages,
           { imageUrl: imageDataUrl, isUser: true, isImage: true, isTypingComplete: true },
         ]);
-        setShowImageNotSupported(true); // Show the specific message
-        // Removed the setTimeout here, so the message will not disappear automatically
+
+        // Now, send the image to the new backend API for analysis
+        setIsLoading(true); // Show loading indicator for image processing
+
+        try {
+          const response = await fetch('/api/image-chat', { // New API route for image analysis
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ imageDataUrl }), // imageDataUrl is now available
+          });
+
+          const data = await response.json();
+
+          // Handle specific LLM errors (e.g., image not a menu) or general API errors
+          if (!response.ok || data.isLlmError) {
+            // Use the LLM's specific error message if available, otherwise a generic one
+            const errorMessage = data.response || "Menu recognition failed. It seems there was a technical glitch in analyzing the image. Please try again!";
+            setMessages((prevMessages) => [
+              ...prevMessages,
+              { text: errorMessage, isUser: false, isBot: true, isError: true, isTypingComplete: true },
+            ]);
+          } else {
+            // Success: Display the structured dish/allergen list
+            const botResponseText = data.response;
+            setMessages((prevMessages) => [
+              ...prevMessages,
+              { text: '', isUser: false, isBot: true, isTypingComplete: false }, // Add empty message for typing effect
+            ]);
+            fullBotResponseRef.current = botResponseText; // Store full response
+
+            setDisplayMessage(''); // Reset display message for new typing
+            let charIndex = 0;
+            typingIntervalRef.current = setInterval(() => {
+              if (charIndex < botResponseText.length) {
+                setDisplayMessage(prev => prev + botResponseText.charAt(charIndex));
+                charIndex++;
+              } else {
+                clearInterval(typingIntervalRef.current);
+                typingIntervalRef.current = null;
+                setMessages(prevMessages => prevMessages.map((msg, idx) =>
+                  idx === prevMessages.length - 1 ? { ...msg, text: botResponseText, isTypingComplete: true } : msg
+                ));
+              }
+            }, 15); // Faster typing speed for results
+          }
+        } catch (error) {
+          console.error("Failed to process image:", error);
+          setMessages((prevMessages) => [
+            ...prevMessages,
+            { text: "Menu recognition failed. It seems there was a technical glitch in analyzing the image. Please try again!", isUser: false, isBot: true, isError: true, isTypingComplete: true },
+          ]);
+          if (typingIntervalRef.current) {
+            clearInterval(typingIntervalRef.current);
+            typingIntervalRef.current = null;
+          }
+        } finally {
+          setIsLoading(false); // Hide loading indicator
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -257,7 +316,6 @@ const App = () => {
     setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
     setDisplayMessage(''); // Clear display message state
     fullBotResponseRef.current = ''; // Clear stored full response
-    setShowImageNotSupported(false); // Also hide the image not supported message on clear
   };
 
   return (
@@ -355,18 +413,6 @@ const App = () => {
           </View>
         )}
 
-        {/* Static message for image upload not supported */}
-        {showImageNotSupported && (
-          <View style={[styles.messageBubbleContainer, styles.botMessageContainer]}>
-            <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
-              <CowboyHatIcon size={24} />
-            </View>
-            <View style={styles.messageBubble}>
-              {/* Updated message for image upload not supported */}
-              <Text style={styles.messageText}>My apologies, aspiring food detective! Direct menu analysis via photo is a feature still under development. For now, let&#39;s stick to text entry. Stay tuned for future advancements in culinary technology!</Text>
-            </View>
-          </View>
-        )}
       </ScrollView>
 
       {/* Bottom Input Tray - Fixed at the bottom */}
