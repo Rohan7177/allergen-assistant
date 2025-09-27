@@ -8,25 +8,15 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Image, // Keep Image component for displaying captured thumbnails
-  Platform // Used for platform-specific styling if needed
+  Image,
+  Platform
 } from 'react-native-web';
-
-// --- COLOR PALETTE FOR DARK THEME ---
-const DARK_BG = '#121212';
-const MID_BG = '#1E1E1E';
-const FOREGROUND = '#FFFFFF';
-const TEXT_LIGHT = '#E0E0E0';
-const TEXT_DARK = '#121212';
-
-// --- ACCENT COLORS (UPDATED) ---
-const YELLOW_ACCENT = '#FFCC00'; // Primary accent color (Yellow)
-const GREEN_ACCENT = '#00C853'; // Secondary accent color (Green for Send)
-const ERROR_RED = '#CF6679';
 
 // Helper component to format text with bolding and handle newlines
 const FormattedText = ({ text, style, boldStyle, errorStyle }) => {
-  const parts = text.split(/(\*\*.*?\*\*)/g); // Split by **bold text** retaining the delimiters
+  // FIX: Ensure 'text' is always treated as a string to prevent 'undefined.split' error.
+  const safeText = text || ''; 
+  const parts = safeText.split(/(\*\*.*?\*\*)/g); // Split by **bold text** retaining the delimiters
 
   return (
     <Text style={style}>
@@ -53,13 +43,12 @@ const FormattedText = ({ text, style, boldStyle, errorStyle }) => {
   );
 };
 
-// SVG Icon for Chatbot (Chef Hat)
+// SVG Icon for Chatbot (Chef Hat) - Dark color for contrast on bright avatar background
 const ChefHatIcon = ({ size = 24 }) => (
-  // Updated color for dark theme visibility
-  <Text style={{ fontSize: size, lineHeight: size, color: TEXT_DARK }}>👨‍🍳</Text>
+  <Text style={{ fontSize: size, lineHeight: size, color: '#121212' }}>👨‍🍳</Text>
 );
 
-// SVG Icon for User (Person Outline)
+// SVG Icon for User (Person Outline) - Dark color for contrast on bright avatar background
 const PersonIcon = ({ size = 24 }) => (
   <svg
     width={size}
@@ -70,14 +59,14 @@ const PersonIcon = ({ size = 24 }) => (
   >
     <path
       d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"
-      stroke={TEXT_DARK} // Changed to TEXT_DARK for contrast against yellow background
+      stroke="#121212" // Dark stroke for contrast
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
     <path
       d="M12 14C7.79186 14 4.38075 16.5888 4.02097 20.6582C3.96866 21.229 4.41738 22 5.00040 22H19.0004C19.5834 22 20.0321 21.229 19.9798 20.6582C19.62 16.5888 16.2089 14 12 14Z"
-      stroke={TEXT_DARK} // Changed to TEXT_DARK for contrast against yellow background
+      stroke="#121212" // Dark stroke for contrast
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -87,52 +76,116 @@ const PersonIcon = ({ size = 24 }) => (
 
 // Main App Component
 const App = () => {
-  // State to hold chat messages
   const [messages, setMessages] = useState([]);
-  // State for the text input field
   const [inputMessage, setInputMessage] = useState('');
-  // Ref for scrolling the chat view to the bottom
   const scrollViewRef = useRef();
-  // State to manage loading indicator during LLM call
   const [isLoading, setIsLoading] = useState(false);
 
-  // Ref for the hidden file input element
+  // State and Refs for the typing effect
+  const [isTyping, setIsTyping] = useState(false); // True while characters are streaming out
+  const [typingText, setTypingText] = useState(''); // The text currently being displayed
+  const fullResponseText = useRef(''); // Stores the full response text from the API
+  const typingIntervalRef = useRef(null); // Reference to the setInterval ID
   const fileInputRef = useRef(null);
 
-  // Auto-scroll to bottom whenever messages change
+  // Auto-scroll to bottom whenever messages change or typing state updates
   useEffect(() => {
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollToEnd({ animated: true });
     }
-  }, [messages]);
+  }, [messages, typingText]);
 
-  // Initial greeting message from Alton Brown - now instant
+  // Initial greeting message
   useEffect(() => {
+    // Cleanup any existing interval on mount/unmount
+    if (typingIntervalRef.current) {
+      clearInterval(typingIntervalRef.current);
+    }
+
     const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
     // Set the initial message instantly without typing effect
     setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
-  }, []); // Run once on component mount
+  }, []);
 
-  // Function to handle sending a text message (dish name)
+  // Typing Effect Logic
+  useEffect(() => {
+    // Only run if we are in the middle of typing and there's more text to show
+    if (isTyping && fullResponseText.current.length > typingText.length) {
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+      }
+      
+      // *** FIX: Increased Typing Speed to 5ms for near-instant effect ***
+      typingIntervalRef.current = setInterval(() => {
+        setTypingText((prevText) => {
+          const nextCharIndex = prevText.length;
+          const fullText = fullResponseText.current;
+
+          if (nextCharIndex < fullText.length) {
+            // Append the next character
+            return prevText + fullText.charAt(nextCharIndex);
+          } else {
+            // Typing complete
+            clearInterval(typingIntervalRef.current);
+            setIsTyping(false);
+
+            // 1. Find the placeholder message and replace it with the complete text
+            setMessages((prevMessages) => {
+                const lastMsgIndex = prevMessages.length - 1;
+                // Only replace if the last message is the placeholder
+                if (lastMsgIndex >= 0 && prevMessages[lastMsgIndex].isPlaceholder) {
+                    const updatedMessages = [...prevMessages];
+                    updatedMessages[lastMsgIndex] = {
+                        text: fullText, // Use the full text
+                        isUser: false,
+                        isBot: true,
+                        isTypingComplete: true,
+                    };
+                    return updatedMessages;
+                }
+                return prevMessages; // Should not happen if flow is correct
+            });
+            
+            // 2. Reset refs for the next response
+            fullResponseText.current = '';
+            return ''; // Reset typingText state
+          }
+        });
+      }, 5); // SUPER fast typing speed (5ms per character)
+    }
+
+    return () => {
+      // Cleanup function to clear the interval on unmount or dependency change
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+      }
+    };
+  }, [isTyping, typingText]);
+
+
+  // Function to handle sending a text message
   const handleSendTextMessage = async () => {
-    const text = inputMessage.trim();
-    if (!text) return; // Don't send empty messages
+    if (isTyping || isLoading) return; // Prevent new send while active
 
-    // Add user's message to chat immediately
-    const newUserMessage = { text: text, isUser: true };
-    setMessages((prevMessages) => [...prevMessages, newUserMessage]);
+    const text = inputMessage.trim();
+    if (!text) return;
+
+    // 1. Add user's message to chat immediately
+    const newUserMessage = { text: text, isUser: true, isTypingComplete: true };
     setInputMessage(''); // Clear input field
 
-    setIsLoading(true); // Show loading indicator
+    // 2. Add bot placeholder message (this will be replaced after typing finishes)
+    // We don't need 'text' here as the FormattedText component now guards against 'undefined'
+    const newBotPlaceholder = { isUser: false, isBot: true, isPlaceholder: true }; 
+    setMessages((prevMessages) => [...prevMessages, newUserMessage, newBotPlaceholder]);
+
+    setIsLoading(true); // Show loading indicator (for API fetch)
 
     try {
-      // Make API call to your Next.js backend for text-based dish name
-      // NOTE: This route should point to your Gemini text generation endpoint
+      // Make API call
       const response = await fetch('/api/chat', { 
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dishName: text }),
       });
 
@@ -143,115 +196,154 @@ const App = () => {
       const data = await response.json();
       const botResponseText = data.response;
 
-      // Directly set the bot's response without typing effect
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { text: botResponseText, isUser: false, isBot: true, isTypingComplete: true },
-      ]);
+      // 3. API response received, stop showing general loading, start typing
+      setIsLoading(false); 
+      
+      fullResponseText.current = botResponseText;
+      setTypingText(''); 
+      setIsTyping(true); // Start the typing effect
 
     } catch (error) {
       console.error("Failed to fetch from LLM:", error);
-      // Add error message directly (no typing effect for errors for simplicity)
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        // Updated error message for Alton Brown's persona
-        { text: "A culinary misstep has occurred! It seems there's a glitch in our data stream, and I couldn&#39;t quite retrieve that information. Let's try that again, shall we?", isUser: false, isBot: true, isError: true, isTypingComplete: true },
-      ]);
-    } finally {
       setIsLoading(false); // Hide loading indicator
+
+      // Replace the placeholder message with the error message
+      setMessages((prevMessages) => {
+        const lastMsgIndex = prevMessages.length - 1;
+        if (lastMsgIndex >= 0 && prevMessages[lastMsgIndex].isPlaceholder) {
+            const updatedMessages = [...prevMessages];
+            updatedMessages[lastMsgIndex] = {
+                text: "A culinary misstep has occurred! It seems there's a glitch in our data stream, and I couldn&#39;t quite retrieve that information. Let's try that again, shall we?",
+                isUser: false,
+                isBot: true,
+                isError: true,
+                isTypingComplete: true,
+            };
+            return updatedMessages;
+        }
+        return prevMessages;
+      });
     }
   };
 
-  // Function to handle image upload (triggers hidden file input)
+  // Function to handle image upload
   const handleImageUpload = () => {
-    // Trigger the hidden file input click
+    if (isTyping || isLoading) return;
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
 
-  // Function to handle file selection from the hidden input
+  // Function to handle file selection
   const handleFileChange = async (event) => {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = async () => { // Made onloadend async
-        const imageDataUrl = reader.result; // imageDataUrl is now correctly scoped here
+      reader.onloadend = async () => {
+        const imageDataUrl = reader.result;
 
-        // Display the image thumbnail immediately
+        // 1. Display the user's image thumbnail immediately
+        // 2. Add bot placeholder message
+        // We don't need 'text' here as the FormattedText component now guards against 'undefined'
+        const newBotPlaceholder = { isUser: false, isBot: true, isPlaceholder: true };
         setMessages((prevMessages) => [
           ...prevMessages,
           { imageUrl: imageDataUrl, isUser: true, isImage: true, isTypingComplete: true },
+          newBotPlaceholder
         ]);
 
-        // Now, send the image to the new backend API for analysis
-        setIsLoading(true); // Show loading indicator for image processing
+        setIsLoading(true);
 
         try {
-          // NOTE: This route should point to your Gemini image analysis endpoint
-          const response = await fetch('/api/image-chat', { 
+          const response = await fetch('/api/image-chat', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ imageDataUrl }), // imageDataUrl is now available
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ imageDataUrl }),
           });
 
           const data = await response.json();
+          setIsLoading(false); 
 
-          // Handle specific LLM errors (e.g., image not a menu) or general API errors
           if (!response.ok || data.isLlmError) {
-            // Use the LLM's specific error message if available, otherwise a generic one
             const errorMessage = data.response || "Menu recognition failed. It seems there was a technical glitch in analyzing the image. Please try again!";
-            setMessages((prevMessages) => [
-              ...prevMessages,
-              { text: errorMessage, isUser: false, isBot: true, isError: true, isTypingComplete: true },
-            ]);
+
+            // Replace placeholder with error message
+            setMessages((prevMessages) => {
+                const lastMsgIndex = prevMessages.length - 1;
+                if (lastMsgIndex >= 0 && prevMessages[lastMsgIndex].isPlaceholder) {
+                    const updatedMessages = [...prevMessages];
+                    updatedMessages[lastMsgIndex] = {
+                        text: errorMessage,
+                        isUser: false,
+                        isBot: true,
+                        isError: true,
+                        isTypingComplete: true,
+                    };
+                    return updatedMessages;
+                }
+                return prevMessages;
+            });
           } else {
-            // Success: Display the structured dish/allergen list INSTANTLY (no typing effect)
+            // Success: Start typing
             const botResponseText = data.response;
-            setMessages((prevMessages) => [
-              ...prevMessages,
-              { text: botResponseText, isUser: false, isBot: true, isTypingComplete: true }, // Directly set full text
-            ]);
+            fullResponseText.current = botResponseText;
+            setTypingText('');
+            setIsTyping(true);
           }
         } catch (error) {
           console.error("Failed to process image:", error);
-          setMessages((prevMessages) => [
-            ...prevMessages,
-            { text: "Menu recognition failed. It seems there was a technical glitch in analyzing the image. Please try again!", isUser: false, isBot: true, isError: true, isTypingComplete: true },
-          ]);
-        } finally {
-          setIsLoading(false); // Hide loading indicator
+          setIsLoading(false);
+
+          // Replace placeholder with generic error message
+          setMessages((prevMessages) => {
+            const lastMsgIndex = prevMessages.length - 1;
+            if (lastMsgIndex >= 0 && prevMessages[lastMsgIndex].isPlaceholder) {
+                const updatedMessages = [...prevMessages];
+                updatedMessages[lastMsgIndex] = {
+                    text: "Menu recognition failed. It seems there was a technical glitch in analyzing the image. Please try again!",
+                    isUser: false,
+                    isBot: true,
+                    isError: true,
+                    isTypingComplete: true,
+                };
+                return updatedMessages;
+            }
+            return prevMessages;
+          });
         }
       };
       reader.readAsDataURL(file);
     }
-    // Clear the input value to allow selecting the same file again
     event.target.value = '';
   };
 
   // Function to clear all messages
   const handleClearConversation = () => {
+    // Stop any active processes
+    if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+    }
+    setIsTyping(false);
+    setIsLoading(false);
+    setTypingText('');
+    fullResponseText.current = '';
+
     const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
-    // Reset the initial greeting to be instant again
     setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
   };
 
   return (
-    // Main container now uses absolute positioning to fill the entire parent (body/html)
-    // This provides a robust base for flexbox children across devices.
     <View style={styles.container}>
       {/* Hidden file input for image selection */}
       <input
         type="file"
-        accept="image/*" // Accept only image files
+        accept="image/*"
         ref={fileInputRef}
         onChange={handleFileChange}
-        style={{ display: 'none' }} // Hide the input element visually
+        style={{ display: 'none' }}
       />
 
-      {/* Header Section - Fixed at the top */}
+      {/* Header Section */}
       <View style={styles.header}>
         {/* Top Left Icon Placeholder */}
         <View style={styles.headerIconLeft}>
@@ -265,67 +357,71 @@ const App = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Chat Interface - This takes up all available vertical space between header and input tray */}
+      {/* Chat Interface */}
       <ScrollView
         ref={scrollViewRef}
         style={styles.chatArea}
         contentContainerStyle={styles.chatContentContainer}
       >
-        {messages.map((msg, index) => (
-          <View
-            key={index}
-            style={[
-              styles.messageBubbleContainer,
-              msg.isUser ? styles.userMessageContainer : styles.botMessageContainer,
-            ]}
-          >
-            {!msg.isUser && (
-              // Bot Avatar uses the new YELLOW_ACCENT
-              <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
-                <ChefHatIcon size={24} />
-              </View>
-            )}
-            <View // CRITICAL FIX: The previously applied fix is maintained here to prevent whitespace text node errors
+        {messages.map((msg, index) => {
+          // Determine if this is the last message (placeholder) and typing is active
+          const isCurrentlyTypingMessage = msg.isPlaceholder && isTyping && index === messages.length - 1;
+
+          return (
+            <View
+              key={index}
               style={[
-                styles.messageBubble,
-                msg.isUser ? styles.userBubbleSpecific : styles.botBubbleSpecific,
+                styles.messageBubbleContainer,
+                msg.isUser ? styles.userMessageContainer : styles.botMessageContainer,
               ]}
             >
-              {msg.isImage && msg.imageUrl ? (
-                <Image
-                  source={{ uri: msg.imageUrl }}
-                  style={styles.imageThumbnail}
-                  accessibilityLabel="Uploaded menu image thumbnail"
-                  alt="Uploaded menu image thumbnail"
-                  onError={(e) => console.log('Thumbnail failed to load:', e.nativeEvent.error)}
-                />
-              ) : (
-                // Always render the full message text directly
-                <FormattedText
-                  text={msg.text}
-                  style={styles.messageText}
-                  boldStyle={styles.boldText}
-                  errorStyle={msg.isError ? styles.errorMessageText : null}
-                />
+              {!msg.isUser && (
+                <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
+                  <ChefHatIcon size={24} />
+                </View>
+              )}
+              <View
+                style={[
+                  styles.messageBubble,
+                  msg.isUser ? styles.userBubbleSpecific : styles.botBubbleSpecific,
+                ]}
+              >
+                {/* Render Image if available, otherwise render FormattedText */}
+                {msg.isImage && msg.imageUrl ? (
+                  <Image
+                    source={{ uri: msg.imageUrl }}
+                    style={styles.imageThumbnail}
+                    accessibilityLabel="Uploaded menu image thumbnail"
+                    alt="Uploaded menu image thumbnail"
+                    onError={(e) => console.log('Thumbnail failed to load:', e.nativeEvent.error)}
+                  />
+                ) : (
+                  // CORE FIX: If it's the active typing message, use typingText state.
+                  // Otherwise, use the message's stored text (which is safe due to FormattedText guard).
+                  <FormattedText
+                    text={isCurrentlyTypingMessage ? typingText : msg.text}
+                    style={styles.messageText}
+                    boldStyle={styles.boldText}
+                    errorStyle={msg.isError ? styles.errorMessageText : null}
+                  />
+                )}
+              </View>
+              {msg.isUser && (
+                <View style={[styles.avatarContainer, styles.userAvatarBackground]}>
+                  <PersonIcon size={24} />
+                </View>
               )}
             </View>
-            {msg.isUser && (
-              // User Avatar uses the new YELLOW_ACCENT
-              <View style={[styles.avatarContainer, styles.userAvatarBackground]}>
-                <PersonIcon size={24} />
-              </View>
-            )}
-          </View>
-        ))}
+          )
+        })}
 
-        {/* Loading Indicator */}
+        {/* Loading Indicator (Only shown while waiting for API response, not during typing) */}
         {isLoading && (
           <View style={[styles.messageBubbleContainer, styles.botMessageContainer]}>
             <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
               <ChefHatIcon size={24} />
             </View>
             <View style={styles.messageBubble}>
-              {/* Updated loading message for Alton Brown's persona */}
               <Text style={styles.messageText}>Calibrating culinary calculations... Stand by!</Text>
             </View>
           </View>
@@ -333,10 +429,10 @@ const App = () => {
 
       </ScrollView>
 
-      {/* Bottom Input Tray - Fixed at the bottom */}
+      {/* Bottom Input Tray */}
       <View style={styles.inputTray}>
-        {/* Plus Button for Image - Uses new YELLOW_ACCENT */}
-        <TouchableOpacity onPress={handleImageUpload} style={styles.plusButton}>
+        {/* Plus Button for Image */}
+        <TouchableOpacity onPress={handleImageUpload} style={styles.plusButton} disabled={isLoading || isTyping}>
           <Text style={styles.plusButtonText}>+</Text>
         </TouchableOpacity>
 
@@ -344,18 +440,19 @@ const App = () => {
         <TextInput
           style={styles.textInput}
           placeholder="Enter a dish name"
-          placeholderTextColor="#999" // Keep placeholder light
+          placeholderTextColor="#A0A0A0" // Light placeholder text for dark theme
           value={inputMessage}
           onChangeText={setInputMessage}
-          onSubmitEditing={handleSendTextMessage} // Allows sending with Enter key
+          onSubmitEditing={handleSendTextMessage}
           returnKeyType="send"
+          editable={!isLoading && !isTyping}
         />
 
-        {/* Send Button - Uses new GREEN_ACCENT */}
+        {/* Send Button */}
         <TouchableOpacity
           onPress={handleSendTextMessage}
           style={styles.sendButton}
-          disabled={isLoading} // Disable send button while loading
+          disabled={isLoading || isTyping || inputMessage.trim().length === 0}
         >
           <Text style={styles.sendButtonText}>&#x27A4;</Text>
         </TouchableOpacity>
@@ -364,29 +461,20 @@ const App = () => {
   );
 };
 
-// Stylesheet for the components
+// Stylesheet for the components (DARK THEME)
 const styles = StyleSheet.create({
   container: {
-    flex: 1, // This is key for flexbox to work.
-    flexDirection: 'column', // Stack children vertically
-    backgroundColor: DARK_BG, // Dark background
-    // IMPORTANT for reliable full-screen flexbox layout:
+    flex: 1,
+    flexDirection: 'column',
+    backgroundColor: '#121212', // Very Dark Background
     position: 'absolute',
     top: 0,
     bottom: 0,
     left: 0,
     right: 0,
-    // Responsive padding for different screen sizes
-    paddingHorizontal: Platform.select({
-      web: {
-        small: 10, // Mobile
-        medium: 20, // Tablet
-        large: 30, // Desktop
-      },
-      default: 10, // Fallback for other platforms
-    }),
-    maxWidth: 800, // Max width for desktop
-    alignSelf: 'center', // Center the app on larger screens
+    paddingHorizontal: Platform.select({ web: { small: 10, medium: 20, large: 30 }, default: 10 }),
+    maxWidth: 800,
+    alignSelf: 'center',
     width: '100%',
   },
   header: {
@@ -394,55 +482,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 15,
-    height: 70, // Fixed height for header
+    height: 70,
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2C', // Dark theme divider
-    backgroundColor: MID_BG, // Darker background for header
+    borderBottomColor: '#2C2C2C', // Dark border
+    backgroundColor: '#1F1F1F', // Dark header background
     borderRadius: 15,
     paddingHorizontal: 15,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.5,
-    shadowRadius: 5,
-    elevation: 6,
-    marginBottom: 10, // Small gap between header and messages
+    shadowRadius: 4,
+    elevation: 3,
+    marginBottom: 10,
   },
   headerIconLeft: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: YELLOW_ACCENT, // UPDATED: Yellow
+    backgroundColor: '#FFD700', // Gold-like background for placeholder
     alignItems: 'center',
     justifyContent: 'center',
   },
   placeholderIconText: {
     fontSize: 20,
-    color: TEXT_DARK, // Dark text on light accent
+    color: '#121212', // Dark text on bright background
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: FOREGROUND, // Light text
-    fontFamily: 'Inter, sans-serif', // Modern font
+    color: '#E0E0E0', // Light text
+    fontFamily: 'Inter, sans-serif',
   },
   headerIconRight: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#2C2C2C', // Dark gray background
+    backgroundColor: '#333333', // Dark gray background
     alignItems: 'center',
     justifyContent: 'center',
   },
   refreshIcon: {
     fontSize: 22,
-    color: YELLOW_ACCENT, // UPDATED: Yellow
+    color: '#E0E0E0', // Light icon color
   },
   chatArea: {
-    flex: 1, // Takes up all remaining space between header and input
+    flex: 1,
   },
   chatContentContainer: {
-    paddingVertical: 10, // Add some top/bottom padding within the scrollable content
-    paddingBottom: 20, // Give some padding at the very bottom of the scroll view
+    paddingVertical: 10,
+    paddingBottom: 20,
   },
   messageBubbleContainer: {
     flexDirection: 'row',
@@ -467,10 +555,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   botAvatarBackground: {
-    backgroundColor: YELLOW_ACCENT, // UPDATED: Yellow
+    backgroundColor: '#FFD700', // Gold (Bright)
   },
   userAvatarBackground: {
-    backgroundColor: YELLOW_ACCENT, // UPDATED: Yellow
+    backgroundColor: '#38B2AC', // Teal (Bright)
   },
   messageBubble: {
     padding: 12,
@@ -479,24 +567,24 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowRadius: 2,
+    elevation: 1,
   },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
-    fontFamily: 'Inter, sans-serif', // Modern font
-    color: TEXT_LIGHT, // Light text color for dark theme
+    fontFamily: 'Inter, sans-serif',
+    color: '#F0F0F0', // Light text for dark theme
   },
   boldText: {
     fontWeight: 'bold',
-    color: FOREGROUND, // Slightly brighter white for bold text
+    color: '#FFD700', // Gold for bold text
   },
   errorMessageText: {
     fontSize: 16,
     lineHeight: 22,
-    color: ERROR_RED, // Error red for dark theme
-    fontFamily: 'Inter, sans-serif', // Modern font
+    color: '#FF8A80', // Lighter red for dark theme
+    fontFamily: 'Inter, sans-serif',
   },
   imageThumbnail: {
     width: 150,
@@ -506,76 +594,76 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   userBubbleSpecific: {
-    backgroundColor: '#3700B3', // Dark purple/blue for user message (kept hardcoded for specific shade)
+    backgroundColor: '#004D40', // Dark Teal/Green
     borderBottomRightRadius: 5,
   },
   botBubbleSpecific: {
-    backgroundColor: '#2C2C2C', // Dark gray for bot message (kept hardcoded for specific shade)
+    backgroundColor: '#2A2A2A', // Slightly lighter dark grey
     borderBottomLeftRadius: 5,
   },
   inputTray: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
-    height: 70, // Fixed height for input tray
+    height: 70,
     paddingHorizontal: 15,
-    backgroundColor: MID_BG, // Darker background for input tray
+    backgroundColor: '#1F1F1F', // Dark input tray background
     borderRadius: 25,
-    marginTop: 10, // Small gap between messages and input
+    marginTop: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 5,
   },
   plusButton: {
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    backgroundColor: YELLOW_ACCENT, // UPDATED: Yellow
+    backgroundColor: '#007AFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
-    shadowColor: YELLOW_ACCENT, // UPDATED: Yellow shadow
+    shadowColor: '#007AFF',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.5,
     shadowRadius: 5,
     elevation: 6,
   },
   plusButtonText: {
-    color: TEXT_DARK, // Dark text on yellow
+    color: '#FFFFFF',
     fontSize: 28,
-    lineHeight: 28, // Adjusted line height
+    lineHeight: 28,
     fontWeight: 'bold',
   },
   textInput: {
     flex: 1,
     height: 45,
-    backgroundColor: '#2C2C2C', // Very dark input field
+    backgroundColor: '#2C2C2C', // Dark input field background
     borderRadius: 22.5,
     paddingHorizontal: 15,
     fontSize: 16,
-    color: TEXT_LIGHT, // Light text color
-    fontFamily: 'Inter, sans-serif', // Modern font
+    color: '#F0F0F0', // Light input text
+    fontFamily: 'Inter, sans-serif',
     borderWidth: 1,
-    borderColor: '#3A3A3A', // Subtle dark border
+    borderColor: '#3A3A3A', // Subtle border
   },
   sendButton: {
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    backgroundColor: GREEN_ACCENT, // UPDATED: Green
+    backgroundColor: '#00C853',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 10,
-    shadowColor: GREEN_ACCENT, // UPDATED: Green shadow
+    shadowColor: '#00C853',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.5,
     shadowRadius: 5,
     elevation: 6,
   },
   sendButtonText: {
-    color: TEXT_DARK, // Dark text on green
+    color: '#FFFFFF',
     fontSize: 22,
     lineHeight: 22,
     fontWeight: 'bold',
