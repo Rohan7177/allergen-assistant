@@ -12,6 +12,18 @@ import {
   Platform // Used for platform-specific styling if needed
 } from 'react-native-web';
 
+// --- COLOR PALETTE FOR DARK THEME ---
+const DARK_BG = '#121212';
+const MID_BG = '#1E1E1E';
+const FOREGROUND = '#FFFFFF';
+const TEXT_LIGHT = '#E0E0E0';
+const TEXT_DARK = '#121212';
+
+// --- ACCENT COLORS (UPDATED) ---
+const YELLOW_ACCENT = '#FFCC00'; // Primary accent color (Yellow)
+const GREEN_ACCENT = '#00C853'; // Secondary accent color (Green for Send)
+const ERROR_RED = '#CF6679';
+
 // Helper component to format text with bolding and handle newlines
 const FormattedText = ({ text, style, boldStyle, errorStyle }) => {
   const parts = text.split(/(\*\*.*?\*\*)/g); // Split by **bold text** retaining the delimiters
@@ -41,9 +53,10 @@ const FormattedText = ({ text, style, boldStyle, errorStyle }) => {
   );
 };
 
-// SVG Icon for Chatbot (Chef Hat) - UPDATED to Chef Emoji
+// SVG Icon for Chatbot (Chef Hat)
 const ChefHatIcon = ({ size = 24 }) => (
-  <Text style={{ fontSize: size, lineHeight: size, color: '#333' }}>👨‍🍳</Text>
+  // Updated color for dark theme visibility
+  <Text style={{ fontSize: size, lineHeight: size, color: TEXT_DARK }}>👨‍🍳</Text>
 );
 
 // SVG Icon for User (Person Outline)
@@ -57,14 +70,14 @@ const PersonIcon = ({ size = 24 }) => (
   >
     <path
       d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"
-      stroke="#333"
+      stroke={TEXT_DARK} // Changed to TEXT_DARK for contrast against yellow background
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
     <path
-      d="M12 14C7.79186 14 4.38075 16.5888 4.02097 20.6582C3.96866 21.229 4.41738 22 5.0004 22H19.0004C19.5834 22 20.0321 21.229 19.9798 20.6582C19.62 16.5888 16.2089 14 12 14Z"
-      stroke="#333"
+      d="M12 14C7.79186 14 4.38075 16.5888 4.02097 20.6582C3.96866 21.229 4.41738 22 5.00040 22H19.0004C19.5834 22 20.0321 21.229 19.9798 20.6582C19.62 16.5888 16.2089 14 12 14Z"
+      stroke={TEXT_DARK} // Changed to TEXT_DARK for contrast against yellow background
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -83,11 +96,6 @@ const App = () => {
   // State to manage loading indicator during LLM call
   const [isLoading, setIsLoading] = useState(false);
 
-  // Removed displayMessage, typingIntervalRef, and fullBotResponseRef states
-  // const [displayMessage, setDisplayMessage] = useState('');
-  // const typingIntervalRef = useRef(null);
-  // const fullBotResponseRef = useRef(''); // Ref to store the full bot response for typing
-
   // Ref for the hidden file input element
   const fileInputRef = useRef(null);
 
@@ -96,15 +104,13 @@ const App = () => {
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollToEnd({ animated: true });
     }
-  }, [messages]); // Removed displayMessage from dependency array
+  }, [messages]);
 
   // Initial greeting message from Alton Brown - now instant
   useEffect(() => {
-    // No more clearing typing intervals here as it's removed
     const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
     // Set the initial message instantly without typing effect
     setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
-    // No more resetting typing states here
   }, []); // Run once on component mount
 
   // Function to handle sending a text message (dish name)
@@ -114,7 +120,6 @@ const App = () => {
 
     // Add user's message to chat immediately
     const newUserMessage = { text: text, isUser: true };
-    // No more clearing typing effect for text messages
     setMessages((prevMessages) => [...prevMessages, newUserMessage]);
     setInputMessage(''); // Clear input field
 
@@ -122,7 +127,8 @@ const App = () => {
 
     try {
       // Make API call to your Next.js backend for text-based dish name
-      const response = await fetch('/api/chat', { // This is the Gemini API route
+      // NOTE: This route should point to your Gemini text generation endpoint
+      const response = await fetch('/api/chat', { 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -151,7 +157,6 @@ const App = () => {
         // Updated error message for Alton Brown's persona
         { text: "A culinary misstep has occurred! It seems there's a glitch in our data stream, and I couldn&#39;t quite retrieve that information. Let's try that again, shall we?", isUser: false, isBot: true, isError: true, isTypingComplete: true },
       ]);
-      // No more clearing typing interval here
     } finally {
       setIsLoading(false); // Hide loading indicator
     }
@@ -159,7 +164,6 @@ const App = () => {
 
   // Function to handle image upload (triggers hidden file input)
   const handleImageUpload = () => {
-    // No more clearing typing effect for image messages
     // Trigger the hidden file input click
     if (fileInputRef.current) {
       fileInputRef.current.click();
@@ -184,7 +188,8 @@ const App = () => {
         setIsLoading(true); // Show loading indicator for image processing
 
         try {
-          const response = await fetch('/api/image-chat', { // New API route for image analysis
+          // NOTE: This route should point to your Gemini image analysis endpoint
+          const response = await fetch('/api/image-chat', { 
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -228,11 +233,9 @@ const App = () => {
 
   // Function to clear all messages
   const handleClearConversation = () => {
-    // No more clearing typing intervals here
     const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
     // Reset the initial greeting to be instant again
     setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
-    // No more clearing display message state or full bot response ref
   };
 
   return (
@@ -277,11 +280,12 @@ const App = () => {
             ]}
           >
             {!msg.isUser && (
+              // Bot Avatar uses the new YELLOW_ACCENT
               <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
-                <ChefHatIcon size={24} /> {/* Changed to ChefHatIcon */}
+                <ChefHatIcon size={24} />
               </View>
             )}
-            <View
+            <View // CRITICAL FIX: The previously applied fix is maintained here to prevent whitespace text node errors
               style={[
                 styles.messageBubble,
                 msg.isUser ? styles.userBubbleSpecific : styles.botBubbleSpecific,
@@ -306,6 +310,7 @@ const App = () => {
               )}
             </View>
             {msg.isUser && (
+              // User Avatar uses the new YELLOW_ACCENT
               <View style={[styles.avatarContainer, styles.userAvatarBackground]}>
                 <PersonIcon size={24} />
               </View>
@@ -317,7 +322,7 @@ const App = () => {
         {isLoading && (
           <View style={[styles.messageBubbleContainer, styles.botMessageContainer]}>
             <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
-              <ChefHatIcon size={24} /> {/* Changed to ChefHatIcon */}
+              <ChefHatIcon size={24} />
             </View>
             <View style={styles.messageBubble}>
               {/* Updated loading message for Alton Brown's persona */}
@@ -330,7 +335,7 @@ const App = () => {
 
       {/* Bottom Input Tray - Fixed at the bottom */}
       <View style={styles.inputTray}>
-        {/* Plus Button for Image */}
+        {/* Plus Button for Image - Uses new YELLOW_ACCENT */}
         <TouchableOpacity onPress={handleImageUpload} style={styles.plusButton}>
           <Text style={styles.plusButtonText}>+</Text>
         </TouchableOpacity>
@@ -339,14 +344,14 @@ const App = () => {
         <TextInput
           style={styles.textInput}
           placeholder="Enter a dish name"
-          placeholderTextColor="#999"
+          placeholderTextColor="#999" // Keep placeholder light
           value={inputMessage}
           onChangeText={setInputMessage}
           onSubmitEditing={handleSendTextMessage} // Allows sending with Enter key
           returnKeyType="send"
         />
 
-        {/* Send Button */}
+        {/* Send Button - Uses new GREEN_ACCENT */}
         <TouchableOpacity
           onPress={handleSendTextMessage}
           style={styles.sendButton}
@@ -364,7 +369,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1, // This is key for flexbox to work.
     flexDirection: 'column', // Stack children vertically
-    backgroundColor: '#F8F8F8', // Light background
+    backgroundColor: DARK_BG, // Dark background
     // IMPORTANT for reliable full-screen flexbox layout:
     position: 'absolute',
     top: 0,
@@ -391,46 +396,46 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     height: 70, // Fixed height for header
     borderBottomWidth: 1,
-    borderBottomColor: '#EEE',
-    backgroundColor: '#FFFFFF', // White header background
+    borderBottomColor: '#2C2C2C', // Dark theme divider
+    backgroundColor: MID_BG, // Darker background for header
     borderRadius: 15,
     paddingHorizontal: 15,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
+    elevation: 6,
     marginBottom: 10, // Small gap between header and messages
   },
   headerIconLeft: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFD700', // Gold-like background for placeholder
+    backgroundColor: YELLOW_ACCENT, // UPDATED: Yellow
     alignItems: 'center',
     justifyContent: 'center',
   },
   placeholderIconText: {
     fontSize: 20,
-    color: '#333',
+    color: TEXT_DARK, // Dark text on light accent
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
-    fontFamily: 'Inter, sans-serif',
+    color: FOREGROUND, // Light text
+    fontFamily: 'Inter, sans-serif', // Modern font
   },
   headerIconRight: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#E0E0E0', // Light gray background
+    backgroundColor: '#2C2C2C', // Dark gray background
     alignItems: 'center',
     justifyContent: 'center',
   },
   refreshIcon: {
     fontSize: 22,
-    color: '#555',
+    color: YELLOW_ACCENT, // UPDATED: Yellow
   },
   chatArea: {
     flex: 1, // Takes up all remaining space between header and input
@@ -462,10 +467,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   botAvatarBackground: {
-    backgroundColor: '#FFD700',
+    backgroundColor: YELLOW_ACCENT, // UPDATED: Yellow
   },
   userAvatarBackground: {
-    backgroundColor: '#87CEEB',
+    backgroundColor: YELLOW_ACCENT, // UPDATED: Yellow
   },
   messageBubble: {
     padding: 12,
@@ -473,23 +478,25 @@ const styles = StyleSheet.create({
     maxWidth: '75%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
   },
   messageText: {
     fontSize: 16,
     lineHeight: 22,
-    fontFamily: 'Inter, sans-serif',
+    fontFamily: 'Inter, sans-serif', // Modern font
+    color: TEXT_LIGHT, // Light text color for dark theme
   },
   boldText: {
     fontWeight: 'bold',
+    color: FOREGROUND, // Slightly brighter white for bold text
   },
   errorMessageText: {
     fontSize: 16,
     lineHeight: 22,
-    color: '#D32F2F',
-    fontFamily: 'Inter, sans-serif',
+    color: ERROR_RED, // Error red for dark theme
+    fontFamily: 'Inter, sans-serif', // Modern font
   },
   imageThumbnail: {
     width: 150,
@@ -499,11 +506,11 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   userBubbleSpecific: {
-    backgroundColor: '#DCF8C6',
+    backgroundColor: '#3700B3', // Dark purple/blue for user message (kept hardcoded for specific shade)
     borderBottomRightRadius: 5,
   },
   botBubbleSpecific: {
-    backgroundColor: '#E5E5EA',
+    backgroundColor: '#2C2C2C', // Dark gray for bot message (kept hardcoded for specific shade)
     borderBottomLeftRadius: 5,
   },
   inputTray: {
@@ -512,57 +519,63 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     height: 70, // Fixed height for input tray
     paddingHorizontal: 15,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: MID_BG, // Darker background for input tray
     borderRadius: 25,
     marginTop: 10, // Small gap between messages and input
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 8,
   },
   plusButton: {
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    backgroundColor: '#007AFF',
+    backgroundColor: YELLOW_ACCENT, // UPDATED: Yellow
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
-    shadowColor: '#007AFF',
+    shadowColor: YELLOW_ACCENT, // UPDATED: Yellow shadow
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 5,
     elevation: 6,
+  },
+  plusButtonText: {
+    color: TEXT_DARK, // Dark text on yellow
+    fontSize: 28,
+    lineHeight: 28, // Adjusted line height
+    fontWeight: 'bold',
   },
   textInput: {
     flex: 1,
     height: 45,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#2C2C2C', // Very dark input field
     borderRadius: 22.5,
     paddingHorizontal: 15,
     fontSize: 16,
-    color: '#333',
-    fontFamily: 'Inter, sans-serif',
+    color: TEXT_LIGHT, // Light text color
+    fontFamily: 'Inter, sans-serif', // Modern font
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#3A3A3A', // Subtle dark border
   },
   sendButton: {
     width: 45,
     height: 45,
     borderRadius: 22.5,
-    backgroundColor: '#00C853',
+    backgroundColor: GREEN_ACCENT, // UPDATED: Green
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 10,
-    shadowColor: '#00C853',
+    shadowColor: GREEN_ACCENT, // UPDATED: Green shadow
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.4,
     shadowRadius: 5,
     elevation: 6,
   },
   sendButtonText: {
-    color: '#FFFFFF',
+    color: TEXT_DARK, // Dark text on green
     fontSize: 22,
     lineHeight: 22,
     fontWeight: 'bold',
