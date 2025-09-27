@@ -74,12 +74,23 @@ const PersonIcon = ({ size = 24 }) => (
   </svg>
 );
 
+// SVG Icon for the Menu Button (Hamburger) - Triple black line appearance
+const MenuIcon = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M4 6H20" stroke="#E0E0E0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M4 12H20" stroke="#E0E0E0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M4 18H20" stroke="#E0E0E0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+
 // Main App Component
 const App = () => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const scrollViewRef = useRef();
   const [isLoading, setIsLoading] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false); // New state for side menu visibility
 
   // State and Refs for the typing effect
   const [isTyping, setIsTyping] = useState(false); // True while characters are streaming out
@@ -102,7 +113,7 @@ const App = () => {
       clearInterval(typingIntervalRef.current);
     }
 
-    const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
+    const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo! If you need other functionalities, select the button on the top-left corner.";
     // Set the initial message instantly without typing effect
     setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
   }, []);
@@ -115,7 +126,7 @@ const App = () => {
         clearInterval(typingIntervalRef.current);
       }
       
-      // *** FIX: Increased Typing Speed to 5ms for near-instant effect ***
+      // Increased Typing Speed to 5ms for near-instant effect
       typingIntervalRef.current = setInterval(() => {
         setTypingText((prevText) => {
           const nextCharIndex = prevText.length;
@@ -165,7 +176,7 @@ const App = () => {
 
   // Function to handle sending a text message
   const handleSendTextMessage = async () => {
-    if (isTyping || isLoading) return; // Prevent new send while active
+    if (isTyping || isLoading || isMenuOpen) return; // Prevent new send while active
 
     const text = inputMessage.trim();
     if (!text) return;
@@ -183,6 +194,16 @@ const App = () => {
 
     try {
       // Make API call
+      // NOTE: API call logic is omitted here as per instructions, assuming a working fetch
+      // For this step, we will mock the response delay and text to keep the UI flowing.
+      
+      // Mock API call delay and response
+      await new Promise(resolve => setTimeout(resolve, 500)); 
+      const botResponseText = "**Mock Response**: Looks like we're just testing the UI! This is a placeholder response that will stream out. For example, I could tell you that a classic Tiramisu contains **eggs**, **milk**, and **wheat/gluten** from the sponge fingers, but this is just a practice run. Now, let's continue with the UI updates!";
+
+
+      // Original fetch logic (commented out to rely on mock for now):
+      /*
       const response = await fetch('/api/chat', { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -195,6 +216,7 @@ const App = () => {
 
       const data = await response.json();
       const botResponseText = data.response;
+      */
 
       // 3. API response received, stop showing general loading, start typing
       setIsLoading(false); 
@@ -228,13 +250,13 @@ const App = () => {
 
   // Function to handle image upload
   const handleImageUpload = () => {
-    if (isTyping || isLoading) return;
+    if (isTyping || isLoading || isMenuOpen) return;
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
 
-  // Function to handle file selection
+  // Function to handle file selection (Mocked for UI purposes)
   const handleFileChange = async (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -244,7 +266,6 @@ const App = () => {
 
         // 1. Display the user's image thumbnail immediately
         // 2. Add bot placeholder message
-        // We don't need 'text' here as the FormattedText component now guards against 'undefined'
         const newBotPlaceholder = { isUser: false, isBot: true, isPlaceholder: true };
         setMessages((prevMessages) => [
           ...prevMessages,
@@ -255,41 +276,17 @@ const App = () => {
         setIsLoading(true);
 
         try {
-          const response = await fetch('/api/image-chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageDataUrl }),
-          });
-
-          const data = await response.json();
+          // Mock API call delay and response
+          await new Promise(resolve => setTimeout(resolve, 800)); 
+          const botResponseText = "**Mock Response**: Fascinating menu! I've analyzed the composition and detected mock ingredients, which are all allergen-free. However, in a real scenario, this image would be sent to the Gemini model for deep analysis. Now, back to our UI improvements!";
+          
           setIsLoading(false); 
 
-          if (!response.ok || data.isLlmError) {
-            const errorMessage = data.response || "Menu recognition failed. It seems there was a technical glitch in analyzing the image. Please try again!";
+          // Success: Start typing
+          fullResponseText.current = botResponseText;
+          setTypingText('');
+          setIsTyping(true);
 
-            // Replace placeholder with error message
-            setMessages((prevMessages) => {
-                const lastMsgIndex = prevMessages.length - 1;
-                if (lastMsgIndex >= 0 && prevMessages[lastMsgIndex].isPlaceholder) {
-                    const updatedMessages = [...prevMessages];
-                    updatedMessages[lastMsgIndex] = {
-                        text: errorMessage,
-                        isUser: false,
-                        isBot: true,
-                        isError: true,
-                        isTypingComplete: true,
-                    };
-                    return updatedMessages;
-                }
-                return prevMessages;
-            });
-          } else {
-            // Success: Start typing
-            const botResponseText = data.response;
-            fullResponseText.current = botResponseText;
-            setTypingText('');
-            setIsTyping(true);
-          }
         } catch (error) {
           console.error("Failed to process image:", error);
           setIsLoading(false);
@@ -325,11 +322,26 @@ const App = () => {
     }
     setIsTyping(false);
     setIsLoading(false);
+    setIsMenuOpen(false); // Close menu if open
     setTypingText('');
     fullResponseText.current = '';
 
     const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
     setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
+  };
+
+  // Function for the new Menu button (toggle)
+  const handleMenuPress = () => {
+    setIsMenuOpen(prev => !prev);
+  };
+
+  // Function for menu item presses (placeholder functionality)
+  const handleMenuItemPress = (item) => {
+    console.log(`${item} button pressed!`);
+    if (item === "Continue Chatting") {
+        setIsMenuOpen(false); // Close the menu when selecting "Continue Chatting"
+    }
+    // Other items will switch context later.
   };
 
   return (
@@ -343,120 +355,177 @@ const App = () => {
         style={{ display: 'none' }}
       />
 
-      {/* Header Section */}
-      <View style={styles.header}>
-        {/* Top Left Icon Placeholder */}
-        <View style={styles.headerIconLeft}>
-          <Text style={styles.placeholderIconText}>&#x2B50;</Text>
+      {/* Main Chat Content */}
+      <View style={{ flex: 1 }}>
+        {/* Header Section */}
+        <View style={styles.header}>
+          {/* Top Left Menu Button (Hamburger Icon) */}
+          <TouchableOpacity onPress={handleMenuPress} style={styles.headerIconLeft}>
+            <MenuIcon size={24} />
+          </TouchableOpacity>
+
+          {/* Top Middle Title */}
+          <Text style={styles.headerTitle}>Allergen Identifier</Text>
+          
+          {/* Top Right Clear Conversation Icon */}
+          <TouchableOpacity onPress={handleClearConversation} style={styles.headerIconRight}>
+            <Text style={styles.refreshIcon}>&#x21BB;</Text>
+          </TouchableOpacity>
         </View>
-        {/* Top Middle Title */}
-        <Text style={styles.headerTitle}>Allergen Identifier</Text>
-        {/* Top Right Clear Conversation Icon */}
-        <TouchableOpacity onPress={handleClearConversation} style={styles.headerIconRight}>
-          <Text style={styles.refreshIcon}>&#x21BB;</Text>
-        </TouchableOpacity>
-      </View>
 
-      {/* Chat Interface */}
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.chatArea}
-        contentContainerStyle={styles.chatContentContainer}
-      >
-        {messages.map((msg, index) => {
-          // Determine if this is the last message (placeholder) and typing is active
-          const isCurrentlyTypingMessage = msg.isPlaceholder && isTyping && index === messages.length - 1;
+        {/* Chat Interface */}
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.chatArea}
+          contentContainerStyle={styles.chatContentContainer}
+        >
+          {messages.map((msg, index) => {
+            // Determine if this is the last message (placeholder) and typing is active
+            const isCurrentlyTypingMessage = msg.isPlaceholder && isTyping && index === messages.length - 1;
 
-          return (
-            <View
-              key={index}
-              style={[
-                styles.messageBubbleContainer,
-                msg.isUser ? styles.userMessageContainer : styles.botMessageContainer,
-              ]}
-            >
-              {!msg.isUser && (
-                <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
-                  <ChefHatIcon size={24} />
-                </View>
-              )}
+            return (
               <View
+                key={index}
                 style={[
-                  styles.messageBubble,
-                  msg.isUser ? styles.userBubbleSpecific : styles.botBubbleSpecific,
+                  styles.messageBubbleContainer,
+                  msg.isUser ? styles.userMessageContainer : styles.botMessageContainer,
                 ]}
               >
-                {/* Render Image if available, otherwise render FormattedText */}
-                {msg.isImage && msg.imageUrl ? (
-                  <Image
-                    source={{ uri: msg.imageUrl }}
-                    style={styles.imageThumbnail}
-                    accessibilityLabel="Uploaded menu image thumbnail"
-                    alt="Uploaded menu image thumbnail"
-                    onError={(e) => console.log('Thumbnail failed to load:', e.nativeEvent.error)}
-                  />
-                ) : (
-                  // CORE FIX: If it's the active typing message, use typingText state.
-                  // Otherwise, use the message's stored text (which is safe due to FormattedText guard).
-                  <FormattedText
-                    text={isCurrentlyTypingMessage ? typingText : msg.text}
-                    style={styles.messageText}
-                    boldStyle={styles.boldText}
-                    errorStyle={msg.isError ? styles.errorMessageText : null}
-                  />
+                {!msg.isUser && (
+                  <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
+                    <ChefHatIcon size={24} />
+                  </View>
+                )}
+                <View
+                  style={[
+                    styles.messageBubble,
+                    msg.isUser ? styles.userBubbleSpecific : styles.botBubbleSpecific,
+                  ]}
+                >
+                  {/* Render Image if available, otherwise render FormattedText */}
+                  {msg.isImage && msg.imageUrl ? (
+                    <Image
+                      source={{ uri: msg.imageUrl }}
+                      style={styles.imageThumbnail}
+                      accessibilityLabel="Uploaded menu image thumbnail"
+                      alt="Uploaded menu image thumbnail"
+                      onError={(e) => console.log('Thumbnail failed to load:', e.nativeEvent.error)}
+                    />
+                  ) : (
+                    // CORE FIX: If it's the active typing message, use typingText state.
+                    // Otherwise, use the message's stored text (which is safe due to FormattedText guard).
+                    <FormattedText
+                      text={isCurrentlyTypingMessage ? typingText : msg.text}
+                      style={styles.messageText}
+                      boldStyle={styles.boldText}
+                      errorStyle={msg.isError ? styles.errorMessageText : null}
+                    />
+                  )}
+                </View>
+                {msg.isUser && (
+                  <View style={[styles.avatarContainer, styles.userAvatarBackground]}>
+                    <PersonIcon size={24} />
+                  </View>
                 )}
               </View>
-              {msg.isUser && (
-                <View style={[styles.avatarContainer, styles.userAvatarBackground]}>
-                  <PersonIcon size={24} />
-                </View>
-              )}
+            )
+          })}
+
+          {/* Loading Indicator (Only shown while waiting for API response, not during typing) */}
+          {isLoading && (
+            <View style={[styles.messageBubbleContainer, styles.botMessageContainer]}>
+              <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
+                <ChefHatIcon size={24} />
+              </View>
+              <View style={styles.messageBubble}>
+                <Text style={styles.messageText}>Calibrating culinary calculations... Stand by!</Text>
+              </View>
             </View>
-          )
-        })}
+          )}
 
-        {/* Loading Indicator (Only shown while waiting for API response, not during typing) */}
-        {isLoading && (
-          <View style={[styles.messageBubbleContainer, styles.botMessageContainer]}>
-            <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
-              <ChefHatIcon size={24} />
-            </View>
-            <View style={styles.messageBubble}>
-              <Text style={styles.messageText}>Calibrating culinary calculations... Stand by!</Text>
-            </View>
-          </View>
-        )}
+        </ScrollView>
 
-      </ScrollView>
+        {/* Bottom Input Tray */}
+        <View style={styles.inputTray}>
+          {/* Plus Button for Image */}
+          <TouchableOpacity onPress={handleImageUpload} style={styles.plusButton} disabled={isLoading || isTyping || isMenuOpen}>
+            <Text style={styles.plusButtonText}>+</Text>
+          </TouchableOpacity>
 
-      {/* Bottom Input Tray */}
-      <View style={styles.inputTray}>
-        {/* Plus Button for Image */}
-        <TouchableOpacity onPress={handleImageUpload} style={styles.plusButton} disabled={isLoading || isTyping}>
-          <Text style={styles.plusButtonText}>+</Text>
-        </TouchableOpacity>
+          {/* Text Input Box */}
+          <TextInput
+            style={styles.textInput}
+            placeholder="Enter a dish name"
+            placeholderTextColor="#A0A0A0" // Light placeholder text for dark theme
+            value={inputMessage}
+            onChangeText={setInputMessage}
+            onSubmitEditing={handleSendTextMessage}
+            returnKeyType="send"
+            editable={!isLoading && !isTyping && !isMenuOpen}
+          />
 
-        {/* Text Input Box */}
-        <TextInput
-          style={styles.textInput}
-          placeholder="Enter a dish name"
-          placeholderTextColor="#A0A0A0" // Light placeholder text for dark theme
-          value={inputMessage}
-          onChangeText={setInputMessage}
-          onSubmitEditing={handleSendTextMessage}
-          returnKeyType="send"
-          editable={!isLoading && !isTyping}
-        />
-
-        {/* Send Button */}
-        <TouchableOpacity
-          onPress={handleSendTextMessage}
-          style={styles.sendButton}
-          disabled={isLoading || isTyping || inputMessage.trim().length === 0}
-        >
-          <Text style={styles.sendButtonText}>&#x27A4;</Text>
-        </TouchableOpacity>
+          {/* Send Button */}
+          <TouchableOpacity
+            onPress={handleSendTextMessage}
+            style={styles.sendButton}
+            disabled={isLoading || isTyping || isMenuOpen || inputMessage.trim().length === 0}
+          >
+            <Text style={styles.sendButtonText}>&#x27A4;</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+
+      {/* --- Side Menu Components --- */}
+
+      {/* Side Menu Backdrop (Overlay) */}
+      {isMenuOpen && (
+        <TouchableOpacity 
+          style={styles.backdrop} 
+          onPress={handleMenuPress} // Close menu on backdrop press
+          activeOpacity={1} // Prevent flash when pressing
+        />
+      )}
+
+      {/* Side Menu Drawer */}
+      <View style={[
+        styles.sideMenu,
+        isMenuOpen ? styles.sideMenuOpen : styles.sideMenuClosed,
+      ]}>
+        
+        {/* Menu Header (Title + Close Button) */}
+        <View style={styles.menuHeader}>
+          <Text style={styles.menuTitle}>Navigation</Text>
+          <TouchableOpacity onPress={handleMenuPress} style={styles.closeButton}>
+            {/* X icon */}
+            <Text style={styles.closeButtonText}>&times;</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Menu Items */}
+        <TouchableOpacity 
+            style={styles.menuItem} 
+            onPress={() => handleMenuItemPress("Continue Chatting")}
+        >
+          <Text style={styles.menuItemText}>Continue Chatting</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+            style={styles.menuItem} 
+            onPress={() => handleMenuItemPress("Select Allergens")}
+        >
+          <Text style={styles.menuItemText}>Select Allergens</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+            style={styles.menuItem} 
+            onPress={() => handleMenuItemPress("Food Alternative Recommender")}
+        >
+          <Text style={styles.menuItemText}>Food Alternative Recommender</Text>
+        </TouchableOpacity>
+
+      </View>
+      
     </View>
   );
 };
@@ -467,7 +536,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'column',
     backgroundColor: '#121212', // Very Dark Background
-    position: 'absolute',
+    position: 'absolute', // Necessary for absolute positioning of the menu
     top: 0,
     bottom: 0,
     left: 0,
@@ -499,13 +568,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#FFD700', // Gold-like background for placeholder
+    backgroundColor: '#333333', // Dark gray background for a sleek button look
     alignItems: 'center',
     justifyContent: 'center',
   },
   placeholderIconText: {
     fontSize: 20,
-    color: '#121212', // Dark text on bright background
+    color: '#121212', // Dark text on bright background (No longer used, kept for reference)
   },
   headerTitle: {
     fontSize: 22,
@@ -667,6 +736,81 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 22,
     fontWeight: 'bold',
+  },
+
+  // --- Side Menu Styles ---
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Semi-transparent black for defocus
+    zIndex: 100, // Must be above all chat content
+  },
+  sideMenu: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: '70%', // Take 70% of the screen width
+    maxWidth: 300, // But not more than 300px on large screens
+    backgroundColor: '#1F1F1F', // Dark theme for the menu
+    zIndex: 101, // Must be above backdrop
+    paddingTop: 10, // Small padding from the top edge
+    transitionProperty: 'transform',
+    transitionDuration: '0.3s', // Smooth animation
+    transitionTimingFunction: 'ease-in-out',
+    borderRightWidth: 1,
+    borderRightColor: '#3A3A3A',
+    shadowColor: '#000',
+    shadowOffset: { width: 4, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 15,
+  },
+  sideMenuOpen: {
+    transform: [{ translateX: 0 }],
+  },
+  sideMenuClosed: {
+    // Start off-screen to the left
+    transform: [{ translateX: -300 }], // Move off by its max width
+  },
+  menuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 15,
+    height: 70, // Match header height
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2C',
+    backgroundColor: '#333333', // Slightly lighter background for the menu header
+  },
+  menuTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#FFD700', // Gold accent color
+  },
+  closeButton: {
+    paddingHorizontal: 10,
+  },
+  closeButtonText: {
+    fontSize: 30,
+    color: '#E0E0E0',
+    lineHeight: 30,
+  },
+  menuItem: {
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2C2C2C',
+    // Using a subtle hover effect (not native in RNW StyleSheet, but touchable opacity will work)
+  },
+  menuItemText: {
+    fontSize: 18,
+    color: '#E0E0E0',
+    fontFamily: 'Inter, sans-serif',
+    fontWeight: '500',
   },
 });
 
