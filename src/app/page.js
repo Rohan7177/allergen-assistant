@@ -1,6 +1,6 @@
 "use client"; // This MUST be the very first line of the file!
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,19 @@ const ALLERGEN_OPTIONS = [
 ];
 const ALLERGEN_OPTIONS_FLAT = ALLERGEN_OPTIONS.map(a => a.toLowerCase());
 
+
+const CHAT_MODES = {
+  ALLERGEN: 'allergen-identifier',
+  ALTERNATIVE: 'food-alternative',
+};
+
+const getInitialBotMessage = (mode) => {
+  if (mode === CHAT_MODES.ALTERNATIVE) {
+    return "Greetings, culinary explorer! I'm Alton Brown, ready to help you discover allergen-aware alternatives. Tell me about the dish or craving you're navigating, and I'll cook up substitutions that steer clear of your flagged allergens.";
+  }
+
+  return "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
+};
 
 // Helper component to format text with bolding and handle newlines
 const FormattedText = ({ text, style, boldStyle, errorStyle }) => {
@@ -215,6 +228,7 @@ const App = () => {
   const [selectedAllergens, setSelectedAllergens] = useState([]); 
   // Tracks if the user has completed the initial selection flow
   const [hasSelectedInitialAllergens, setHasSelectedInitialAllergens] = useState(false); 
+  const [chatMode, setChatMode] = useState(CHAT_MODES.ALLERGEN);
   
   // State/Refs for typing effect (re-introduced for smooth UI)
   const [isTyping, setIsTyping] = useState(false);
@@ -223,19 +237,34 @@ const App = () => {
   const fileInputRef = useRef(null);
 
 
+  const clearTypingInterval = useCallback(() => {
+    if (typingIntervalRef.current) {
+      clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
+    }
+  }, []);
+
+  const initializeConversationForMode = useCallback((mode) => {
+    clearTypingInterval();
+    setIsTyping(false);
+    setTypingText('');
+    setIsLoading(false);
+    setInputMessage('');
+
+    const initialText = getInitialBotMessage(mode);
+    setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
+  }, [clearTypingInterval]);
+
   // Initial Greeting and Initial Modal Check
   useEffect(() => {
-    // Initial Greeting setup
-    const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
-    setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
+    initializeConversationForMode(chatMode);
+  }, [chatMode, initializeConversationForMode]);
 
-    // Check if initial selection is done (for now, default to true for development)
-    // In a real app, this would check localStorage/Firestore.
-    // For now, let's open the modal on first load.
+  useEffect(() => {
     if (!hasSelectedInitialAllergens) {
-        setIsAllergenModalOpen(true);
+      setIsAllergenModalOpen(true);
     }
-  }, []); // Run once on component mount
+  }, [hasSelectedInitialAllergens]);
 
   // Auto-scroll to bottom whenever messages change or typing state updates
   useEffect(() => {
@@ -244,13 +273,6 @@ const App = () => {
     }
   }, [messages, typingText]);
 
-
-  const clearTypingInterval = () => {
-    if (typingIntervalRef.current) {
-      clearInterval(typingIntervalRef.current);
-      typingIntervalRef.current = null;
-    }
-  };
 
   const commitBotResponse = (finalText) => {
     setMessages((prevMessages) => {
@@ -306,7 +328,7 @@ const App = () => {
     return () => {
       clearTypingInterval();
     };
-  }, []);
+  }, [clearTypingInterval]);
 
 
   // Function to handle sending a text message
@@ -326,14 +348,16 @@ const App = () => {
     setIsLoading(true);
 
     try {
-      // --- NEW: CALLING API WITH ALLERGENS ---
-      const response = await fetch('/api/chat', {
+      const isAlternativeMode = chatMode === CHAT_MODES.ALTERNATIVE;
+      const endpoint = isAlternativeMode ? '/api/food-alternative' : '/api/chat';
+      const payload = isAlternativeMode
+        ? { userPrompt: text, selectedAllergens }
+        : { dishName: text, selectedAllergens };
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            dishName: text, 
-            selectedAllergens: selectedAllergens 
-        }), // Send dish name and current allergen list
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -356,15 +380,15 @@ const App = () => {
       setMessages((prevMessages) => {
         const lastMsgIndex = prevMessages.length - 1;
         if (lastMsgIndex >= 0 && prevMessages[lastMsgIndex].isPlaceholder) {
-            const updatedMessages = [...prevMessages];
-            updatedMessages[lastMsgIndex] = {
-                text: "A culinary misstep has occurred! It seems there's a glitch in our data stream, and I couldn&#39;t quite retrieve that information. Let's try that again, shall we?",
-                isUser: false,
-                isBot: true,
-                isError: true,
-                isTypingComplete: true,
-            };
-            return updatedMessages;
+          const updatedMessages = [...prevMessages];
+          updatedMessages[lastMsgIndex] = {
+            text: "A culinary misstep has occurred! It seems there's a glitch in our data stream, and I couldn&#39;t quite retrieve that information. Let's try that again, shall we?",
+            isUser: false,
+            isBot: true,
+            isError: true,
+            isTypingComplete: true,
+          };
+          return updatedMessages;
         }
         return prevMessages;
       });
@@ -459,15 +483,9 @@ const App = () => {
 
   // Function to clear all messages
   const handleClearConversation = () => {
-    clearTypingInterval();
-    setIsTyping(false);
-    setIsLoading(false);
+    initializeConversationForMode(chatMode);
     setIsMenuOpen(false);
     setIsAllergenModalOpen(false); // Close any open modal
-    setTypingText('');
-
-    const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
-    setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
   };
 
   // Function for the new Menu button (toggle)
@@ -481,16 +499,25 @@ const App = () => {
   // Function for menu item presses (placeholder functionality)
   const handleMenuItemPress = (item) => {
     if (item === "Continue Chatting") {
-        setIsMenuOpen(false);
+      setChatMode(CHAT_MODES.ALLERGEN);
     } else if (item === "Select Allergens") {
-        setIsAllergenModalOpen(true); // Open the modal with current selections
+      setIsAllergenModalOpen(true); // Open the modal with current selections
+    } else if (item === "Food Alternative Recommender") {
+      setChatMode(CHAT_MODES.ALTERNATIVE);
     }
-    // Other items will switch context later.
+
+    if (item !== "Select Allergens") {
+      setIsMenuOpen(false);
+    }
   };
 
   // Check if any critical UI element is open/active to disable inputs
   const isOverlayActive = isMenuOpen || isAllergenModalOpen;
   const isInputDisabled = isLoading || isTyping || isOverlayActive;
+  const headerTitle = chatMode === CHAT_MODES.ALTERNATIVE ? 'Food Alternative Recommender' : 'Allergen Identifier';
+  const inputPlaceholder = chatMode === CHAT_MODES.ALTERNATIVE
+    ? "Describe the dish you need an allergen-safe alternative for"
+    : "Enter a dish name";
 
   return (
     <View style={styles.container}>
@@ -511,7 +538,7 @@ const App = () => {
             <MenuIcon size={24} />
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>Allergen Identifier</Text>
+          <Text style={styles.headerTitle}>{headerTitle}</Text>
           
           <TouchableOpacity onPress={handleClearConversation} style={styles.headerIconRight} disabled={isInputDisabled}>
             <Text style={styles.refreshIcon}>&#x21BB;</Text>
@@ -594,7 +621,7 @@ const App = () => {
 
           <TextInput
             style={styles.textInput}
-            placeholder="Enter a dish name"
+            placeholder={inputPlaceholder}
             placeholderTextColor="#A0A0A0"
             value={inputMessage}
             onChangeText={setInputMessage}
