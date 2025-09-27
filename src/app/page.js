@@ -219,7 +219,6 @@ const App = () => {
   // State/Refs for typing effect (re-introduced for smooth UI)
   const [isTyping, setIsTyping] = useState(false);
   const [typingText, setTypingText] = useState('');
-  const fullResponseText = useRef(''); 
   const typingIntervalRef = useRef(null); 
   const fileInputRef = useRef(null);
 
@@ -246,52 +245,68 @@ const App = () => {
   }, [messages, typingText]);
 
 
-  // Typing Effect Logic (Re-implemented for smooth, modern feel)
-  useEffect(() => {
-    if (isTyping && fullResponseText.current.length > typingText.length) {
-      if (typingIntervalRef.current) {
-        clearInterval(typingIntervalRef.current);
+  const clearTypingInterval = () => {
+    if (typingIntervalRef.current) {
+      clearInterval(typingIntervalRef.current);
+      typingIntervalRef.current = null;
+    }
+  };
+
+  const commitBotResponse = (finalText) => {
+    setMessages((prevMessages) => {
+      const lastMsgIndex = prevMessages.length - 1;
+      if (lastMsgIndex >= 0 && prevMessages[lastMsgIndex].isPlaceholder) {
+        const updatedMessages = [...prevMessages];
+        updatedMessages[lastMsgIndex] = {
+          text: finalText,
+          isUser: false,
+          isBot: true,
+          isTypingComplete: true,
+        };
+        return updatedMessages;
       }
-      
-      typingIntervalRef.current = setInterval(() => {
-        setTypingText((prevText) => {
-          const nextCharIndex = prevText.length;
-          const fullText = fullResponseText.current;
+      return prevMessages;
+    });
+  };
 
-          if (nextCharIndex < fullText.length) {
-            return prevText + fullText.charAt(nextCharIndex);
-          } else {
-            clearInterval(typingIntervalRef.current);
-            setIsTyping(false);
+  const finishTypingAnimation = (finalText) => {
+    commitBotResponse(finalText);
+    clearTypingInterval();
+    setTypingText('');
+    setIsTyping(false);
+  };
 
-            setMessages((prevMessages) => {
-                const lastMsgIndex = prevMessages.length - 1;
-                if (lastMsgIndex >= 0 && prevMessages[lastMsgIndex].isPlaceholder) {
-                    const updatedMessages = [...prevMessages];
-                    updatedMessages[lastMsgIndex] = {
-                        text: fullText,
-                        isUser: false,
-                        isBot: true,
-                        isTypingComplete: true,
-                    };
-                    return updatedMessages;
-                }
-                return prevMessages;
-            });
-            
-            fullResponseText.current = '';
-            return '';
-          }
-        });
-      }, 5); // Fast typing speed (5ms per character)
+  const startTypingAnimation = (responseText) => {
+    const safeText = typeof responseText === 'string' ? responseText : '';
+
+    clearTypingInterval();
+
+    if (!safeText.length) {
+      finishTypingAnimation('');
+      return;
     }
 
-    return () => {
-      if (typingIntervalRef.current) {
-        clearInterval(typingIntervalRef.current);
+    setTypingText('');
+    setIsTyping(true);
+
+    let currentIndex = 0;
+    typingIntervalRef.current = setInterval(() => {
+      currentIndex += 1;
+      const hasReachedEnd = currentIndex >= safeText.length;
+      const nextSlice = hasReachedEnd ? safeText : safeText.slice(0, currentIndex);
+      setTypingText(nextSlice);
+
+      if (hasReachedEnd) {
+        finishTypingAnimation(safeText);
       }
+    }, 12);
+  };
+
+  useEffect(() => {
+    return () => {
+      clearTypingInterval();
     };
-  }, [isTyping, typingText]);
+  }, []);
 
 
   // Function to handle sending a text message
@@ -331,9 +346,7 @@ const App = () => {
 
       // 3. Start typing effect
       setIsLoading(false); 
-      fullResponseText.current = botResponseText;
-      setTypingText(''); 
-      setIsTyping(true);
+      startTypingAnimation(botResponseText);
 
     } catch (error) {
       console.error("Failed to fetch from LLM:", error);
@@ -409,9 +422,7 @@ const App = () => {
 
           // 3. Start typing effect
           setIsLoading(false); 
-          fullResponseText.current = botResponseText;
-          setTypingText('');
-          setIsTyping(true);
+          startTypingAnimation(botResponseText);
 
         } catch (error) {
           console.error("Failed to process image:", error);
@@ -441,15 +452,12 @@ const App = () => {
 
   // Function to clear all messages
   const handleClearConversation = () => {
-    if (typingIntervalRef.current) {
-        clearInterval(typingIntervalRef.current);
-    }
+    clearTypingInterval();
     setIsTyping(false);
     setIsLoading(false);
     setIsMenuOpen(false);
     setIsAllergenModalOpen(false); // Close any open modal
     setTypingText('');
-    fullResponseText.current = '';
 
     const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
     setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
