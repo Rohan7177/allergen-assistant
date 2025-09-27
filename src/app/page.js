@@ -397,37 +397,44 @@ const App = () => {
         setIsLoading(true);
 
         try {
-          // Mock API call delay
-          await new Promise(resolve => setTimeout(resolve, 800)); 
-          
-          // --- NEW MOCK LOGIC adhering to user request for image-based chat filtering ---
-          const mockDishList = [
-              'Chicken Pot Pie', 
-              'Vegetable Lasagna', 
-              'Chocolate Cake'
-          ];
-          let botResponseText = `**Mock Menu Analysis**: I've scanned the document and identified a few dishes:\n\n`;
-          
-          // Reference the selected allergens for context in the mock response
-          const allergenList = selectedAllergens.length > 0 ? 
-              selectedAllergens.map(a => a.charAt(0).toUpperCase() + a.slice(1)).join(', ') :
-              'None specified.';
-          
-          // Apply the user's rule: "for each dish (multiple dishes), it will say 'None of your selected allergens found'"
-          mockDishList.forEach(dish => {
-              botResponseText += `**${dish}**:\n• **None of your selected allergens found**.\n\n`;
+          const response = await fetch('/api/image-chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imageDataUrl,
+              mimeType: file.type,
+              selectedAllergens,
+            }),
           });
-          
-          botResponseText += `This response respects your current allergen profile (**${allergenList}**). **Always confirm ingredients with the restaurant staff.**`;
 
-          // 3. Start typing effect
-          setIsLoading(false); 
+          const data = await response.json();
+
+          if (!response.ok || data.error) {
+            throw new Error(data.message || 'Failed to analyze the uploaded menu.');
+          }
+
+          const botResponseText = data.response;
+
+          setIsLoading(false);
           startTypingAnimation(botResponseText);
 
         } catch (error) {
-          console.error("Failed to process image:", error);
+          console.error('Failed to process image:', error);
           setIsLoading(false);
-          // Error handling logic similar to text message...
+          setMessages((prevMessages) => {
+            const updatedMessages = [...prevMessages];
+            const lastIndex = updatedMessages.length - 1;
+            if (lastIndex >= 0 && updatedMessages[lastIndex].isPlaceholder) {
+              updatedMessages[lastIndex] = {
+                text: "A culinary misstep has occurred while scanning that image. Let’s double-check the file or try again with another snapshot!",
+                isUser: false,
+                isBot: true,
+                isError: true,
+                isTypingComplete: true,
+              };
+            }
+            return updatedMessages;
+          });
         }
       };
       reader.readAsDataURL(file);

@@ -32,21 +32,32 @@ export async function POST(request) {
   const imagePart = convertToGenerativePart(imageDataUrl, mimeType);
 
   // The prompt must instruct the model to analyze the image, detect dishes, and apply filtering for each one.
-  const textPrompt = `You are a food expert who helps people find allergens, speaking in a charismatic style like Alton Brown.
-Analyze this image, which contains a menu or a list of dishes.
+  const textPrompt = `You are a food allergen expert with the charismatic flair of Alton Brown.
+Carefully review the supplied image of a menu or list of dishes and extract as many dish names and ingredient details as possible.
 
-For **EACH dish** you identify in the image, you MUST follow these allergen filtering rules:
-1. **The only allergens you are allowed to mention are from this user's selection list:** [${allergenListString}].
-2. Provide a brief introduction and name the dish clearly using bold text (e.g., "**Chicken Pot Pie**").
-3. **ONLY HIGHLIGHT, in a clear, bulleted list, the allergens that are present in the dish AND are on the user's selection list.** Use the '• ' character for the bulleted list. Each allergen must be bolded (e.g., • **MILK**).
-4. If the dish contains **NONE** of the user's selected allergens, you must output the single line of text: "**None of your selected allergens found.**" for that dish.
-5. After analyzing all dishes, provide a general summary and a single, final warning about cross-contamination in shared kitchen environments, advising the user to confirm with the establishment.`;
+User allergen watchlist (uppercase): [${allergenListString}].
+
+Output rules you must follow without exception:
+1. **Only mention dishes that include at least one allergen from the user's watchlist.** If a dish does not contain any of the user's selected allergens, do not mention it.
+2. When you list a qualifying dish, format it like this:
+   • First line: dish name in bold, for example "**Chicken Pot Pie**".
+   • Subsequent lines: use the exact bullet prefix "• " followed by the allergen in bold and a concise justification referencing the ingredient or description (for example, "• **MILK** — creamy béchamel sauce").
+3. Never mention allergens that are not part of the user's watchlist. If an allergen is suspected but uncertain, explicitly say "possible" in your justification.
+4. If **no dishes** contain the user's selected allergens, respond instead with the single line "**Good news:** I didn't spot any of your selected allergens in the visible dishes.".
+5. Conclude every response with a brief summary sentence plus a single warning about kitchen cross-contamination, encouraging the user to confirm details with the establishment.`;
   
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // The contents array includes both the text prompt and the image data
-    const contents = [imagePart, { text: textPrompt }];
+    const contents = [
+      {
+        role: "user",
+        parts: [
+          { text: textPrompt },
+          imagePart,
+        ],
+      },
+    ];
 
     const result = await model.generateContent({ contents });
     const responseText = result.response.text(); 
