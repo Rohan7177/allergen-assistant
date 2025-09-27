@@ -1,55 +1,49 @@
 // src/app/api/chat/route.js
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { NextResponse } from 'next/server'; // Import NextResponse for App Router APIs
-
-// Ensure the API key is available from environment variables
-// This key should be set in a .env.local file for local development
-// and as an environment variable in Vercel for deployment.
-const API_KEY = process.env.GOOGLE_API_KEY;
+import { NextResponse } from 'next/server';
 
 // Initialize Google Generative AI
-// It's important to instantiate this once to reuse the configuration.
+const API_KEY = process.env.GOOGLE_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// Define the POST handler for the API route
-// In the App Router, specific HTTP methods are exported as functions (GET, POST, etc.)
 export async function POST(request) {
-  // Extract the dishName from the request body
-  // Request body is now accessed via request.json()
-  const { dishName } = await request.json();
+  // Extract the dishName AND selectedAllergens from the request body
+  const { dishName, selectedAllergens } = await request.json(); 
 
-  // Basic validation for the input
   if (!dishName) {
     return NextResponse.json({ message: 'Dish name is required.' }, { status: 400 });
   }
 
+  // Convert the array of selected allergens into a comma-separated string for the prompt
+  const allergenListString = selectedAllergens && selectedAllergens.length > 0 
+    ? selectedAllergens.map(a => a.toUpperCase()).join(', ') 
+    : 'NONE_SELECTED'; 
+
   try {
-    // Select the generative model.
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    // Construct the prompt for the LLM
-    // Updated prompt to match the user's request for Alton Brown persona and cross-contamination details.
+    // The prompt enforces the allergen filtering logic.
     const prompt = `You are a food expert who helps people find allergens, speaking in a charismatic style like Alton Brown from the Food Network.
 When given a dish name, first provide a brief (around 50 words) description of the dish, its origin, and popularity.
-Then, **in a clear, bulleted list, using the '• ' character, identify common food allergens** for the dish.
-Ensure each allergen is on a new line. Focus on these allergens: peanuts, tree nuts, milk, fish, shellfish, egg, soy, wheat, and gluten.
-After the bulleted list of allergens, **assess the specific dish's likelihood of cross-contamination (e.g., high, low, or moderate) based on common kitchen practices and ingredients, then provide a general warning about cross-contamination in shared kitchen environments,** and always advise the user to confirm with the establishment.
-Keep your response concise and directly address the allergens and cross-contamination.
+You MUST follow the allergen filtering rules below:
+1. **The only allergens you are allowed to mention are from this user's selection list:** [${allergenListString}].
+2. **Identify common food allergens** for the dish.
+3. **ONLY HIGHLIGHT, in a clear, bulleted list, the allergens that are present in the dish AND are on the user's selection list.** Use the '• ' character for the bulleted list. Each allergen must be bolded (e.g., • **MILK**).
+4. If the dish contains **ANY** of the user's selected allergens, list those found allergens.
+5. If **NONE** of the user's selected allergens are found in the dish, you must output the single line of text: "**None of your selected allergens found.**"
+6. After the allergen output (either the list or the 'None found' message), **assess the specific dish's likelihood of cross-contamination (e.g., high, low, or moderate) based on common kitchen practices and ingredients, then provide a general warning about cross-contamination in shared kitchen environments,** and always advise the user to confirm with the establishment.
 
 The dish name is: "${dishName}"`;
 
-    // Generate content using the model
     const result = await model.generateContent(prompt);
-    const responseText = result.response.text(); // Get the plain text response
+    const responseText = result.response.text(); 
 
-    // Send the LLM's response back using NextResponse
     return NextResponse.json({ response: responseText }, { status: 200 });
 
   } catch (error) {
     console.error("Error communicating with Gemini LLM:", error);
-    // Return a user-friendly error message
     return NextResponse.json(
-      { message: "A culinary misstep has occurred! It seems there's a glitch in our data stream, and I couldn&#39;t quite retrieve that information. Let's try that again, shall we?", error: error.message },
+      { message: "A culinary misstep has occurred! Failed to retrieve text information.", error: error.message },
       { status: 500 }
     );
   }

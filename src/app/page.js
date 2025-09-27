@@ -311,16 +311,23 @@ const App = () => {
     setIsLoading(true);
 
     try {
-      // Mock API call delay and response
-      await new Promise(resolve => setTimeout(resolve, 500)); 
-      
-      // Use the selected allergens in the mock response for demonstration
-      const allergenList = selectedAllergens.length > 0 ? 
-        selectedAllergens.map(a => `**${a.charAt(0).toUpperCase() + a.slice(1)}**`).join(', ') :
-        'None specified.';
-      
-      const botResponseText = `**Mock Response**: Analyzing your request, keeping in mind your preferences for: ${allergenList}. This is a placeholder. Now, let's test the image upload feature!`;
+      // --- NEW: CALLING API WITH ALLERGENS ---
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            dishName: text, 
+            selectedAllergens: selectedAllergens 
+        }), // Send dish name and current allergen list
+      });
 
+      const data = await response.json();
+      
+      if (!response.ok || data.error) {
+          throw new Error(data.message || "Failed to get a response from the kitchen.");
+      }
+
+      const botResponseText = data.response; // Response from the LLM
 
       // 3. Start typing effect
       setIsLoading(false); 
@@ -377,9 +384,30 @@ const App = () => {
         setIsLoading(true);
 
         try {
+          // Mock API call delay
           await new Promise(resolve => setTimeout(resolve, 800)); 
-          const botResponseText = "**Mock Response**: Image analyzed! This confirms your previous selections are still active. What else can I dissect for you?";
           
+          // --- NEW MOCK LOGIC adhering to user request for image-based chat filtering ---
+          const mockDishList = [
+              'Chicken Pot Pie', 
+              'Vegetable Lasagna', 
+              'Chocolate Cake'
+          ];
+          let botResponseText = `**Mock Menu Analysis**: I've scanned the document and identified a few dishes:\n\n`;
+          
+          // Reference the selected allergens for context in the mock response
+          const allergenList = selectedAllergens.length > 0 ? 
+              selectedAllergens.map(a => a.charAt(0).toUpperCase() + a.slice(1)).join(', ') :
+              'None specified.';
+          
+          // Apply the user's rule: "for each dish (multiple dishes), it will say 'None of your selected allergens found'"
+          mockDishList.forEach(dish => {
+              botResponseText += `**${dish}**:\n• **None of your selected allergens found**.\n\n`;
+          });
+          
+          botResponseText += `This response respects your current allergen profile (**${allergenList}**). **Always confirm ingredients with the restaurant staff.**`;
+
+          // 3. Start typing effect
           setIsLoading(false); 
           fullResponseText.current = botResponseText;
           setTypingText('');
@@ -387,6 +415,7 @@ const App = () => {
 
         } catch (error) {
           console.error("Failed to process image:", error);
+          setIsLoading(false);
           // Error handling logic similar to text message...
         }
       };
@@ -404,7 +433,6 @@ const App = () => {
     // Check if it's the first time setting preferences
     if (!hasSelectedInitialAllergens) {
         setHasSelectedInitialAllergens(true);
-        // NOTE: The chat confirmation message was removed as requested.
     }
     
     setIsMenuOpen(false); // Close side menu when modal is closed/submitted
@@ -631,7 +659,7 @@ const App = () => {
   );
 };
 
-// --- Modal Specific Styles ---
+// --- Modal Specific Styles (Omitted for brevity, kept from prior file) ---
 const modalStyles = StyleSheet.create({
     backdrop: {
         position: 'absolute',
@@ -760,7 +788,7 @@ const modalStyles = StyleSheet.create({
     },
 });
 
-// --- Main App Styles (Reused from previous step) ---
+// --- Main App Styles (Omitted for brevity, kept from prior file) ---
 const styles = StyleSheet.create({
   container: {
     flex: 1,

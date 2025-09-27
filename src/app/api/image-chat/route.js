@@ -1,93 +1,62 @@
 // src/app/api/image-chat/route.js
-import OpenAI from 'openai';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from 'next/server';
 
-// Ensure the OpenAI API key is available from environment variables.
-// This should be set in .env.local for local development
-// and as an environment variable in Vercel for deployment.
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+// Initialize Google Generative AI
+const API_KEY = process.env.GOOGLE_API_KEY;
+const genAI = new GoogleGenerativeAI(API_KEY);
 
-// Initialize the OpenAI client
-const openai = new OpenAI({
-  apiKey: OPENAI_API_KEY,
-});
+// Helper function to convert base64 image data into the format expected by the API
+function convertToGenerativePart(base64Data, mimeType) {
+  return {
+    inlineData: {
+      data: base64Data.split(',')[1], // Strip the 'data:mime/type;base64,' prefix
+      mimeType,
+    },
+  };
+}
 
-// Define the POST handler for the API route
 export async function POST(request) {
-  // Extract the imageDataUrl from the request body
-  const { imageDataUrl } = await request.json();
+  // Expecting image data (base64 URL), the associated prompt, and selected allergens
+  const { imageDataUrl, mimeType, selectedAllergens } = await request.json(); 
 
-  // Basic validation for the input image data
-  if (!imageDataUrl) {
-    return NextResponse.json({ message: 'Image data is required.' }, { status: 400 });
+  if (!imageDataUrl || !mimeType) {
+    return NextResponse.json({ message: 'Image data and mime type are required.' }, { status: 400 });
   }
 
-  // Extract the base64 string from the data URL
-  // Example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ..." -> "/9j/4AAQSkZJRgABAQ..."
-  const base64Image = imageDataUrl.split(',')[1];
-  if (!base64Image) {
-    return NextResponse.json({ message: 'Invalid image data format.' }, { status: 400 });
-  }
+  // Convert the array of selected allergens into a comma-separated string
+  const allergenListString = selectedAllergens && selectedAllergens.length > 0 
+    ? selectedAllergens.map(a => a.toUpperCase()).join(', ') 
+    : 'NONE_SELECTED'; 
 
+  const imagePart = convertToGenerativePart(imageDataUrl, mimeType);
+
+  // The prompt must instruct the model to analyze the image, detect dishes, and apply filtering for each one.
+  const textPrompt = `You are a food expert who helps people find allergens, speaking in a charismatic style like Alton Brown.
+Analyze this image, which contains a menu or a list of dishes.
+
+For **EACH dish** you identify in the image, you MUST follow these allergen filtering rules:
+1. **The only allergens you are allowed to mention are from this user's selection list:** [${allergenListString}].
+2. Provide a brief introduction and name the dish clearly using bold text (e.g., "**Chicken Pot Pie**").
+3. **ONLY HIGHLIGHT, in a clear, bulleted list, the allergens that are present in the dish AND are on the user's selection list.** Use the '• ' character for the bulleted list. Each allergen must be bolded (e.g., • **MILK**).
+4. If the dish contains **NONE** of the user's selected allergens, you must output the single line of text: "**None of your selected allergens found.**" for that dish.
+5. After analyzing all dishes, provide a general summary and a single, final warning about cross-contamination in shared kitchen environments, advising the user to confirm with the establishment.`;
+  
   try {
-    // Call the OpenAI Vision API
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o", // gpt-4o is a good choice for vision, balancing cost and capability
-      messages: [
-        {
-          role: "system",
-          content: `You are an expert culinary assistant specializing in identifying dishes and their common allergens from menu images.
-          Your task is to analyze the provided image, identify distinct dishes, and for each dish, list its common allergens.
-          Focus on these common allergens: peanuts, tree nuts, milk, fish, shellfish, egg, soy, wheat, and gluten.
-          
-          **Output Format:**
-          For each identified dish, output a single line in the format:
-          **[Dish Name]** - [List of Allergens, comma-separated]
-          
-          If a dish has no common allergens from the list, state "No common allergens".
-          List each dish on a new line.
-          
-          **Important:**
-          - If the image does not appear to be a menu, or if the text is unreadable, respond with: "I'm sorry, but that doesn't appear to be a readable menu or a menu at all. Please try uploading a clearer image of a menu."
-          - Do NOT include any introductory or concluding remarks. Just the list of dishes and allergens, or the error message.
-          - If you cannot identify any dishes from the image, state: "No dishes could be identified from this image. Please ensure it's a clear image of a menu."
-          `,
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Please identify the dishes and their common allergens from this menu image." },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:image/jpeg;base64,${base64Image}`, // Or image/png depending on your input
-              },
-            },
-          ],
-        },
-      ],
-      max_tokens: 500, // Limit the response length to keep it concise
-    });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    const llmResponseContent = response.choices[0].message.content;
+    // The contents array includes both the text prompt and the image data
+    const contents = [imagePart, { text: textPrompt }];
 
-    // Check for specific error messages from the LLM if it couldn't process the image content
-    if (llmResponseContent.includes("I'm sorry, but that doesn't appear to be a readable menu or a menu at all.") ||
-        llmResponseContent.includes("No dishes could be identified from this image.")) {
-      return NextResponse.json({
-        response: llmResponseContent, // Send the LLM's specific error message
-        isLlmError: true // Custom flag to indicate this is an LLM-generated error message
-      }, { status: 200 }); // Still 200 OK because the LLM processed it, just couldn't recognize
-    }
+    const result = await model.generateContent({ contents });
+    const responseText = result.response.text(); 
 
-    // Return the LLM's structured response
-    return NextResponse.json({ response: llmResponseContent }, { status: 200 });
+    return NextResponse.json({ response: responseText }, { status: 200 });
 
   } catch (error) {
-    console.error("Error calling OpenAI Vision API:", error);
-    // Return a generic error message if the API call itself failed
+    console.error("Error communicating with Gemini Multimodal LLM:", error);
     return NextResponse.json(
-      { message: "Menu recognition failed. It seems there was a technical glitch in analyzing the image. Please try again!", error: error.message },
+      { message: "A culinary misstep has occurred! Failed to process the menu image.", error: error.message },
       { status: 500 }
     );
   }
