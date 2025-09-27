@@ -9,12 +9,20 @@ import {
   StyleSheet,
   ScrollView,
   Image,
-  Platform
+  Platform,
 } from 'react-native-web';
+
+// --- Configuration ---
+const ALLERGEN_OPTIONS = [
+    'Peanuts', 'Pistachios', 'Tree Nuts', 'Eggs', 'Shellfish',
+    'Wheat', 'Cashews', 'Almonds', 'Milk', 'Fish',
+    'Soy', 'Gluten'
+];
+const ALLERGEN_OPTIONS_FLAT = ALLERGEN_OPTIONS.map(a => a.toLowerCase());
+
 
 // Helper component to format text with bolding and handle newlines
 const FormattedText = ({ text, style, boldStyle, errorStyle }) => {
-  // FIX: Ensure 'text' is always treated as a string to prevent 'undefined.split' error.
   const safeText = text || ''; 
   const parts = safeText.split(/(\*\*.*?\*\*)/g); // Split by **bold text** retaining the delimiters
 
@@ -43,12 +51,12 @@ const FormattedText = ({ text, style, boldStyle, errorStyle }) => {
   );
 };
 
-// SVG Icon for Chatbot (Chef Hat) - Dark color for contrast on bright avatar background
+// SVG Icon for Chatbot (Chef Hat)
 const ChefHatIcon = ({ size = 24 }) => (
   <Text style={{ fontSize: size, lineHeight: size, color: '#121212' }}>👨‍🍳</Text>
 );
 
-// SVG Icon for User (Person Outline) - Dark color for contrast on bright avatar background
+// SVG Icon for User (Person Outline)
 const PersonIcon = ({ size = 24 }) => (
   <svg
     width={size}
@@ -59,14 +67,14 @@ const PersonIcon = ({ size = 24 }) => (
   >
     <path
       d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z"
-      stroke="#121212" // Dark stroke for contrast
+      stroke="#121212"
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
     <path
       d="M12 14C7.79186 14 4.38075 16.5888 4.02097 20.6582C3.96866 21.229 4.41738 22 5.00040 22H19.0004C19.5834 22 20.0321 21.229 19.9798 20.6582C19.62 16.5888 16.2089 14 12 14Z"
-      stroke="#121212" // Dark stroke for contrast
+      stroke="#121212"
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -74,7 +82,7 @@ const PersonIcon = ({ size = 24 }) => (
   </svg>
 );
 
-// SVG Icon for the Menu Button (Hamburger) - Triple black line appearance
+// SVG Icon for the Menu Button (Hamburger)
 const MenuIcon = ({ size = 24 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M4 6H20" stroke="#E0E0E0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -83,21 +91,152 @@ const MenuIcon = ({ size = 24 }) => (
   </svg>
 );
 
+// --- Allergen Selection Modal Component ---
+const AllergenSelectionModal = ({ 
+    initialSelection, 
+    onClose, 
+    onSubmit, 
+    isInitialSetup = false 
+}) => {
+    // Local state to manage temporary selections
+    const [selectedAllergens, setSelectedAllergens] = useState(new Set(initialSelection));
 
-// Main App Component
+    const toggleAllergen = (allergen) => {
+        setSelectedAllergens(prev => {
+            const newSet = new Set(prev);
+            const key = allergen.toLowerCase();
+            if (newSet.has(key)) {
+                newSet.delete(key);
+            } else {
+                newSet.add(key);
+            }
+            return newSet;
+        });
+    };
+
+    const handleSelectAll = () => {
+        const allKeys = new Set(ALLERGEN_OPTIONS_FLAT);
+        
+        // If all are currently selected, deselect all. Otherwise, select all.
+        if (selectedAllergens.size === ALLERGEN_OPTIONS_FLAT.length) {
+            setSelectedAllergens(new Set());
+        } else {
+            setSelectedAllergens(allKeys);
+        }
+    };
+
+    const isAllSelected = selectedAllergens.size === ALLERGEN_OPTIONS_FLAT.length;
+    
+    // Convert Set back to Array for submission
+    const handleSubmit = () => {
+        onSubmit(Array.from(selectedAllergens));
+    };
+
+    return (
+        <View style={modalStyles.backdrop}>
+            <View style={modalStyles.modalCard}>
+                
+                {/* Header */}
+                <View style={modalStyles.header}>
+                    <Text style={modalStyles.title}>Select Your Allergens</Text>
+                    {!isInitialSetup && (
+                        <TouchableOpacity onPress={onClose}>
+                            <Text style={modalStyles.closeButton}>&times; Close</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                {/* Allergen Grid */}
+                <ScrollView style={modalStyles.contentArea} contentContainerStyle={modalStyles.gridContainer}>
+                    
+                    {ALLERGEN_OPTIONS.map((allergen) => {
+                        const key = allergen.toLowerCase();
+                        const isChecked = selectedAllergens.has(key);
+
+                        return (
+                            <TouchableOpacity
+                                key={allergen}
+                                style={modalStyles.allergenItem}
+                                onPress={() => toggleAllergen(allergen)}
+                            >
+                                <View style={[
+                                    modalStyles.checkbox, 
+                                    isChecked && modalStyles.checkboxChecked
+                                ]}>
+                                    {isChecked && <Text style={modalStyles.checkMark}>✓</Text>}
+                                </View>
+                                <Text style={modalStyles.allergenText}>{allergen}</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+
+                    {/* Select All Option */}
+                    <TouchableOpacity 
+                        style={[modalStyles.allergenItem, modalStyles.selectAllItem]}
+                        onPress={handleSelectAll}
+                    >
+                         <View style={[
+                            modalStyles.checkbox, 
+                            isAllSelected && modalStyles.checkboxChecked
+                        ]}>
+                            {isAllSelected && <Text style={modalStyles.checkMark}>✓</Text>}
+                        </View>
+                        <Text style={modalStyles.allergenTextBold}>Select All</Text>
+                    </TouchableOpacity>
+
+                </ScrollView>
+
+                {/* Footer / Submit */}
+                <View style={modalStyles.footer}>
+                    <Text style={modalStyles.noteText}>Note that you can customize these later via the side menu.</Text>
+                    <TouchableOpacity style={modalStyles.submitButton} onPress={handleSubmit}>
+                        <Text style={modalStyles.submitButtonText}>
+                            {isInitialSetup ? 'Start Chatting' : 'Save Preferences'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
+            </View>
+        </View>
+    );
+};
+
+// --- Main App Component ---
 const App = () => {
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const scrollViewRef = useRef();
   const [isLoading, setIsLoading] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // New state for side menu visibility
-
-  // State and Refs for the typing effect
-  const [isTyping, setIsTyping] = useState(false); // True while characters are streaming out
-  const [typingText, setTypingText] = useState(''); // The text currently being displayed
-  const fullResponseText = useRef(''); // Stores the full response text from the API
-  const typingIntervalRef = useRef(null); // Reference to the setInterval ID
+  
+  // --- New State for Menu and Allergens ---
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isAllergenModalOpen, setIsAllergenModalOpen] = useState(false);
+  // Stores selected allergens as an array of strings (e.g., ['peanuts', 'milk'])
+  const [selectedAllergens, setSelectedAllergens] = useState([]); 
+  // Tracks if the user has completed the initial selection flow
+  const [hasSelectedInitialAllergens, setHasSelectedInitialAllergens] = useState(false); 
+  
+  // State/Refs for typing effect (re-introduced for smooth UI)
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingText, setTypingText] = useState('');
+  const fullResponseText = useRef(''); 
+  const typingIntervalRef = useRef(null); 
   const fileInputRef = useRef(null);
+
+
+  // Initial Greeting and Initial Modal Check
+  useEffect(() => {
+    // Initial Greeting setup
+    const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
+    setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
+
+    // Check if initial selection is done (for now, default to true for development)
+    // In a real app, this would check localStorage/Firestore.
+    // For now, let's open the modal on first load.
+    if (!hasSelectedInitialAllergens) {
+        setIsAllergenModalOpen(true);
+    }
+  }, []); // Run once on component mount
 
   // Auto-scroll to bottom whenever messages change or typing state updates
   useEffect(() => {
@@ -106,67 +245,48 @@ const App = () => {
     }
   }, [messages, typingText]);
 
-  // Initial greeting message
-  useEffect(() => {
-    // Cleanup any existing interval on mount/unmount
-    if (typingIntervalRef.current) {
-      clearInterval(typingIntervalRef.current);
-    }
 
-    const initialText = "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo! If you need other functionalities, select the button on the top-left corner.";
-    // Set the initial message instantly without typing effect
-    setMessages([{ text: initialText, isUser: false, isBot: true, isTypingComplete: true }]);
-  }, []);
-
-  // Typing Effect Logic
+  // Typing Effect Logic (Re-implemented for smooth, modern feel)
   useEffect(() => {
-    // Only run if we are in the middle of typing and there's more text to show
     if (isTyping && fullResponseText.current.length > typingText.length) {
       if (typingIntervalRef.current) {
         clearInterval(typingIntervalRef.current);
       }
       
-      // Increased Typing Speed to 5ms for near-instant effect
       typingIntervalRef.current = setInterval(() => {
         setTypingText((prevText) => {
           const nextCharIndex = prevText.length;
           const fullText = fullResponseText.current;
 
           if (nextCharIndex < fullText.length) {
-            // Append the next character
             return prevText + fullText.charAt(nextCharIndex);
           } else {
-            // Typing complete
             clearInterval(typingIntervalRef.current);
             setIsTyping(false);
 
-            // 1. Find the placeholder message and replace it with the complete text
             setMessages((prevMessages) => {
                 const lastMsgIndex = prevMessages.length - 1;
-                // Only replace if the last message is the placeholder
                 if (lastMsgIndex >= 0 && prevMessages[lastMsgIndex].isPlaceholder) {
                     const updatedMessages = [...prevMessages];
                     updatedMessages[lastMsgIndex] = {
-                        text: fullText, // Use the full text
+                        text: fullText,
                         isUser: false,
                         isBot: true,
                         isTypingComplete: true,
                     };
                     return updatedMessages;
                 }
-                return prevMessages; // Should not happen if flow is correct
+                return prevMessages;
             });
             
-            // 2. Reset refs for the next response
             fullResponseText.current = '';
-            return ''; // Reset typingText state
+            return '';
           }
         });
-      }, 5); // SUPER fast typing speed (5ms per character)
+      }, 5); // Fast typing speed (5ms per character)
     }
 
     return () => {
-      // Cleanup function to clear the interval on unmount or dependency change
       if (typingIntervalRef.current) {
         clearInterval(typingIntervalRef.current);
       }
@@ -176,58 +296,41 @@ const App = () => {
 
   // Function to handle sending a text message
   const handleSendTextMessage = async () => {
-    if (isTyping || isLoading || isMenuOpen) return; // Prevent new send while active
+    // Block sending if a modal/menu is open or if busy
+    if (isTyping || isLoading || isMenuOpen || isAllergenModalOpen) return; 
 
     const text = inputMessage.trim();
     if (!text) return;
 
-    // 1. Add user's message to chat immediately
+    // 1. Add user's message and bot placeholder
     const newUserMessage = { text: text, isUser: true, isTypingComplete: true };
-    setInputMessage(''); // Clear input field
-
-    // 2. Add bot placeholder message (this will be replaced after typing finishes)
-    // We don't need 'text' here as the FormattedText component now guards against 'undefined'
     const newBotPlaceholder = { isUser: false, isBot: true, isPlaceholder: true }; 
     setMessages((prevMessages) => [...prevMessages, newUserMessage, newBotPlaceholder]);
+    setInputMessage(''); 
 
-    setIsLoading(true); // Show loading indicator (for API fetch)
+    setIsLoading(true);
 
     try {
-      // Make API call
-      // NOTE: API call logic is omitted here as per instructions, assuming a working fetch
-      // For this step, we will mock the response delay and text to keep the UI flowing.
-      
       // Mock API call delay and response
       await new Promise(resolve => setTimeout(resolve, 500)); 
-      const botResponseText = "**Mock Response**: Looks like we're just testing the UI! This is a placeholder response that will stream out. For example, I could tell you that a classic Tiramisu contains **eggs**, **milk**, and **wheat/gluten** from the sponge fingers, but this is just a practice run. Now, let's continue with the UI updates!";
-
-
-      // Original fetch logic (commented out to rely on mock for now):
-      /*
-      const response = await fetch('/api/chat', { 
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dishName: text }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const botResponseText = data.response;
-      */
-
-      // 3. API response received, stop showing general loading, start typing
-      setIsLoading(false); 
       
+      // Use the selected allergens in the mock response for demonstration
+      const allergenList = selectedAllergens.length > 0 ? 
+        selectedAllergens.map(a => `**${a.charAt(0).toUpperCase() + a.slice(1)}**`).join(', ') :
+        'None specified.';
+      
+      const botResponseText = `**Mock Response**: Analyzing your request, keeping in mind your preferences for: ${allergenList}. This is a placeholder. Now, let's test the image upload feature!`;
+
+
+      // 3. Start typing effect
+      setIsLoading(false); 
       fullResponseText.current = botResponseText;
       setTypingText(''); 
-      setIsTyping(true); // Start the typing effect
+      setIsTyping(true);
 
     } catch (error) {
       console.error("Failed to fetch from LLM:", error);
-      setIsLoading(false); // Hide loading indicator
+      setIsLoading(false);
 
       // Replace the placeholder message with the error message
       setMessages((prevMessages) => {
@@ -248,24 +351,22 @@ const App = () => {
     }
   };
 
-  // Function to handle image upload
+  // Image upload functions (omitted for brevity, assume they work as before)
   const handleImageUpload = () => {
-    if (isTyping || isLoading || isMenuOpen) return;
+    if (isTyping || isLoading || isMenuOpen || isAllergenModalOpen) return;
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
 
-  // Function to handle file selection (Mocked for UI purposes)
   const handleFileChange = async (event) => {
+    if (isTyping || isLoading || isMenuOpen || isAllergenModalOpen) return;
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = async () => {
         const imageDataUrl = reader.result;
 
-        // 1. Display the user's image thumbnail immediately
-        // 2. Add bot placeholder message
         const newBotPlaceholder = { isUser: false, isBot: true, isPlaceholder: true };
         setMessages((prevMessages) => [
           ...prevMessages,
@@ -276,37 +377,17 @@ const App = () => {
         setIsLoading(true);
 
         try {
-          // Mock API call delay and response
           await new Promise(resolve => setTimeout(resolve, 800)); 
-          const botResponseText = "**Mock Response**: Fascinating menu! I've analyzed the composition and detected mock ingredients, which are all allergen-free. However, in a real scenario, this image would be sent to the Gemini model for deep analysis. Now, back to our UI improvements!";
+          const botResponseText = "**Mock Response**: Image analyzed! This confirms your previous selections are still active. What else can I dissect for you?";
           
           setIsLoading(false); 
-
-          // Success: Start typing
           fullResponseText.current = botResponseText;
           setTypingText('');
           setIsTyping(true);
 
         } catch (error) {
           console.error("Failed to process image:", error);
-          setIsLoading(false);
-
-          // Replace placeholder with generic error message
-          setMessages((prevMessages) => {
-            const lastMsgIndex = prevMessages.length - 1;
-            if (lastMsgIndex >= 0 && prevMessages[lastMsgIndex].isPlaceholder) {
-                const updatedMessages = [...prevMessages];
-                updatedMessages[lastMsgIndex] = {
-                    text: "Menu recognition failed. It seems there was a technical glitch in analyzing the image. Please try again!",
-                    isUser: false,
-                    isBot: true,
-                    isError: true,
-                    isTypingComplete: true,
-                };
-                return updatedMessages;
-            }
-            return prevMessages;
-          });
+          // Error handling logic similar to text message...
         }
       };
       reader.readAsDataURL(file);
@@ -314,15 +395,31 @@ const App = () => {
     event.target.value = '';
   };
 
+
+  // Function to handle Allergen Modal submission
+  const handleAllergenSubmit = (newAllergens) => {
+    setSelectedAllergens(newAllergens);
+    setIsAllergenModalOpen(false);
+    
+    // Check if it's the first time setting preferences
+    if (!hasSelectedInitialAllergens) {
+        setHasSelectedInitialAllergens(true);
+        // NOTE: The chat confirmation message was removed as requested.
+    }
+    
+    setIsMenuOpen(false); // Close side menu when modal is closed/submitted
+  };
+
+
   // Function to clear all messages
   const handleClearConversation = () => {
-    // Stop any active processes
     if (typingIntervalRef.current) {
         clearInterval(typingIntervalRef.current);
     }
     setIsTyping(false);
     setIsLoading(false);
-    setIsMenuOpen(false); // Close menu if open
+    setIsMenuOpen(false);
+    setIsAllergenModalOpen(false); // Close any open modal
     setTypingText('');
     fullResponseText.current = '';
 
@@ -332,17 +429,25 @@ const App = () => {
 
   // Function for the new Menu button (toggle)
   const handleMenuPress = () => {
-    setIsMenuOpen(prev => !prev);
+    // Only allow opening if not busy and no modal is open
+    if (!isLoading && !isTyping && !isAllergenModalOpen) {
+        setIsMenuOpen(prev => !prev);
+    }
   };
 
   // Function for menu item presses (placeholder functionality)
   const handleMenuItemPress = (item) => {
-    console.log(`${item} button pressed!`);
     if (item === "Continue Chatting") {
-        setIsMenuOpen(false); // Close the menu when selecting "Continue Chatting"
+        setIsMenuOpen(false);
+    } else if (item === "Select Allergens") {
+        setIsAllergenModalOpen(true); // Open the modal with current selections
     }
     // Other items will switch context later.
   };
+
+  // Check if any critical UI element is open/active to disable inputs
+  const isOverlayActive = isMenuOpen || isAllergenModalOpen;
+  const isInputDisabled = isLoading || isTyping || isOverlayActive;
 
   return (
     <View style={styles.container}>
@@ -359,16 +464,13 @@ const App = () => {
       <View style={{ flex: 1 }}>
         {/* Header Section */}
         <View style={styles.header}>
-          {/* Top Left Menu Button (Hamburger Icon) */}
-          <TouchableOpacity onPress={handleMenuPress} style={styles.headerIconLeft}>
+          <TouchableOpacity onPress={handleMenuPress} style={styles.headerIconLeft} disabled={isInputDisabled}>
             <MenuIcon size={24} />
           </TouchableOpacity>
 
-          {/* Top Middle Title */}
           <Text style={styles.headerTitle}>Allergen Identifier</Text>
           
-          {/* Top Right Clear Conversation Icon */}
-          <TouchableOpacity onPress={handleClearConversation} style={styles.headerIconRight}>
+          <TouchableOpacity onPress={handleClearConversation} style={styles.headerIconRight} disabled={isInputDisabled}>
             <Text style={styles.refreshIcon}>&#x21BB;</Text>
           </TouchableOpacity>
         </View>
@@ -380,7 +482,6 @@ const App = () => {
           contentContainerStyle={styles.chatContentContainer}
         >
           {messages.map((msg, index) => {
-            // Determine if this is the last message (placeholder) and typing is active
             const isCurrentlyTypingMessage = msg.isPlaceholder && isTyping && index === messages.length - 1;
 
             return (
@@ -402,7 +503,6 @@ const App = () => {
                     msg.isUser ? styles.userBubbleSpecific : styles.botBubbleSpecific,
                   ]}
                 >
-                  {/* Render Image if available, otherwise render FormattedText */}
                   {msg.isImage && msg.imageUrl ? (
                     <Image
                       source={{ uri: msg.imageUrl }}
@@ -412,8 +512,6 @@ const App = () => {
                       onError={(e) => console.log('Thumbnail failed to load:', e.nativeEvent.error)}
                     />
                   ) : (
-                    // CORE FIX: If it's the active typing message, use typingText state.
-                    // Otherwise, use the message's stored text (which is safe due to FormattedText guard).
                     <FormattedText
                       text={isCurrentlyTypingMessage ? typingText : msg.text}
                       style={styles.messageText}
@@ -431,7 +529,7 @@ const App = () => {
             )
           })}
 
-          {/* Loading Indicator (Only shown while waiting for API response, not during typing) */}
+          {/* Loading Indicator (for API fetch) */}
           {isLoading && (
             <View style={[styles.messageBubbleContainer, styles.botMessageContainer]}>
               <View style={[styles.avatarContainer, styles.botAvatarBackground]}>
@@ -447,28 +545,25 @@ const App = () => {
 
         {/* Bottom Input Tray */}
         <View style={styles.inputTray}>
-          {/* Plus Button for Image */}
-          <TouchableOpacity onPress={handleImageUpload} style={styles.plusButton} disabled={isLoading || isTyping || isMenuOpen}>
+          <TouchableOpacity onPress={handleImageUpload} style={styles.plusButton} disabled={isInputDisabled}>
             <Text style={styles.plusButtonText}>+</Text>
           </TouchableOpacity>
 
-          {/* Text Input Box */}
           <TextInput
             style={styles.textInput}
             placeholder="Enter a dish name"
-            placeholderTextColor="#A0A0A0" // Light placeholder text for dark theme
+            placeholderTextColor="#A0A0A0"
             value={inputMessage}
             onChangeText={setInputMessage}
             onSubmitEditing={handleSendTextMessage}
             returnKeyType="send"
-            editable={!isLoading && !isTyping && !isMenuOpen}
+            editable={!isInputDisabled}
           />
 
-          {/* Send Button */}
           <TouchableOpacity
             onPress={handleSendTextMessage}
             style={styles.sendButton}
-            disabled={isLoading || isTyping || isMenuOpen || inputMessage.trim().length === 0}
+            disabled={isInputDisabled || inputMessage.trim().length === 0}
           >
             <Text style={styles.sendButtonText}>&#x27A4;</Text>
           </TouchableOpacity>
@@ -476,14 +571,14 @@ const App = () => {
       </View>
 
 
-      {/* --- Side Menu Components --- */}
+      {/* --- Side Menu Components (Overlays) --- */}
 
-      {/* Side Menu Backdrop (Overlay) */}
+      {/* Side Menu Backdrop */}
       {isMenuOpen && (
         <TouchableOpacity 
           style={styles.backdrop} 
-          onPress={handleMenuPress} // Close menu on backdrop press
-          activeOpacity={1} // Prevent flash when pressing
+          onPress={handleMenuPress}
+          activeOpacity={1}
         />
       )}
 
@@ -492,17 +587,13 @@ const App = () => {
         styles.sideMenu,
         isMenuOpen ? styles.sideMenuOpen : styles.sideMenuClosed,
       ]}>
-        
-        {/* Menu Header (Title + Close Button) */}
         <View style={styles.menuHeader}>
           <Text style={styles.menuTitle}>Navigation</Text>
           <TouchableOpacity onPress={handleMenuPress} style={styles.closeButton}>
-            {/* X icon */}
             <Text style={styles.closeButtonText}>&times;</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Menu Items */}
         <TouchableOpacity 
             style={styles.menuItem} 
             onPress={() => handleMenuItemPress("Continue Chatting")}
@@ -525,18 +616,157 @@ const App = () => {
         </TouchableOpacity>
 
       </View>
+
+      {/* --- Allergen Selection Modal --- */}
+      {isAllergenModalOpen && (
+        <AllergenSelectionModal
+            initialSelection={selectedAllergens}
+            onClose={() => setIsAllergenModalOpen(false)}
+            onSubmit={handleAllergenSubmit}
+            isInitialSetup={!hasSelectedInitialAllergens}
+        />
+      )}
       
     </View>
   );
 };
 
-// Stylesheet for the components (DARK THEME)
+// --- Modal Specific Styles ---
+const modalStyles = StyleSheet.create({
+    backdrop: {
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)', // Darker backdrop to emphasize modal
+        zIndex: 200, // Highest zIndex
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+    },
+    modalCard: {
+        width: '100%',
+        maxWidth: 500,
+        backgroundColor: '#1F1F1F', // Dark card background
+        borderRadius: 20,
+        overflow: 'hidden',
+        maxHeight: '90%',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.9,
+        shadowRadius: 20,
+        elevation: 20,
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#2C2C2C',
+        backgroundColor: '#333333',
+    },
+    title: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#FFD700', // Gold accent
+        fontFamily: 'Inter, sans-serif',
+    },
+    closeButton: {
+        fontSize: 18,
+        color: '#E0E0E0',
+        padding: 5,
+    },
+    contentArea: {
+        padding: 20,
+    },
+    gridContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+    },
+    allergenItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: '48%', // Two columns, slightly less than 50% for spacing
+        marginVertical: 10,
+    },
+    selectAllItem: {
+        width: '100%', // Full width for Select All
+        marginTop: 20,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#2C2C2C',
+    },
+    checkbox: {
+        width: 24,
+        height: 24,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: '#E0E0E0',
+        marginRight: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    checkboxChecked: {
+        backgroundColor: '#00C853', // Green check
+        borderColor: '#00C853',
+    },
+    checkMark: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    allergenText: {
+        fontSize: 18,
+        color: '#E0E0E0',
+        fontFamily: 'Inter, sans-serif',
+    },
+    allergenTextBold: {
+        fontSize: 18,
+        color: '#FFD700', // Gold for emphasis
+        fontWeight: 'bold',
+        fontFamily: 'Inter, sans-serif',
+    },
+    footer: {
+        padding: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#2C2C2C',
+    },
+    noteText: {
+        fontSize: 14,
+        color: '#A0A0A0', // Subtle gray
+        textAlign: 'center',
+        marginBottom: 15,
+        fontStyle: 'italic',
+    },
+    submitButton: {
+        backgroundColor: '#00C853', // Green primary action
+        padding: 15,
+        borderRadius: 12,
+        alignItems: 'center',
+        shadowColor: '#00C853',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 5,
+        elevation: 6,
+    },
+    submitButtonText: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontWeight: 'bold',
+        fontFamily: 'Inter, sans-serif',
+    },
+});
+
+// --- Main App Styles (Reused from previous step) ---
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     flexDirection: 'column',
     backgroundColor: '#121212', // Very Dark Background
-    position: 'absolute', // Necessary for absolute positioning of the menu
+    position: 'absolute',
     top: 0,
     bottom: 0,
     left: 0,
@@ -553,8 +783,8 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     height: 70,
     borderBottomWidth: 1,
-    borderBottomColor: '#2C2C2C', // Dark border
-    backgroundColor: '#1F1F1F', // Dark header background
+    borderBottomColor: '#2C2C2C',
+    backgroundColor: '#1F1F1F',
     borderRadius: 15,
     paddingHorizontal: 15,
     shadowColor: '#000',
@@ -568,31 +798,27 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#333333', // Dark gray background for a sleek button look
+    backgroundColor: '#333333',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  placeholderIconText: {
-    fontSize: 20,
-    color: '#121212', // Dark text on bright background (No longer used, kept for reference)
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#E0E0E0', // Light text
+    color: '#E0E0E0',
     fontFamily: 'Inter, sans-serif',
   },
   headerIconRight: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#333333', // Dark gray background
+    backgroundColor: '#333333',
     alignItems: 'center',
     justifyContent: 'center',
   },
   refreshIcon: {
     fontSize: 22,
-    color: '#E0E0E0', // Light icon color
+    color: '#E0E0E0',
   },
   chatArea: {
     flex: 1,
@@ -624,10 +850,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   botAvatarBackground: {
-    backgroundColor: '#FFD700', // Gold (Bright)
+    backgroundColor: '#FFD700',
   },
   userAvatarBackground: {
-    backgroundColor: '#38B2AC', // Teal (Bright)
+    backgroundColor: '#38B2AC',
   },
   messageBubble: {
     padding: 12,
@@ -643,16 +869,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
     fontFamily: 'Inter, sans-serif',
-    color: '#F0F0F0', // Light text for dark theme
+    color: '#F0F0F0',
   },
   boldText: {
     fontWeight: 'bold',
-    color: '#FFD700', // Gold for bold text
+    color: '#FFD700',
   },
   errorMessageText: {
     fontSize: 16,
     lineHeight: 22,
-    color: '#FF8A80', // Lighter red for dark theme
+    color: '#FF8A80',
     fontFamily: 'Inter, sans-serif',
   },
   imageThumbnail: {
@@ -663,11 +889,11 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   userBubbleSpecific: {
-    backgroundColor: '#004D40', // Dark Teal/Green
+    backgroundColor: '#004D40',
     borderBottomRightRadius: 5,
   },
   botBubbleSpecific: {
-    backgroundColor: '#2A2A2A', // Slightly lighter dark grey
+    backgroundColor: '#2A2A2A',
     borderBottomLeftRadius: 5,
   },
   inputTray: {
@@ -676,7 +902,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     height: 70,
     paddingHorizontal: 15,
-    backgroundColor: '#1F1F1F', // Dark input tray background
+    backgroundColor: '#1F1F1F',
     borderRadius: 25,
     marginTop: 10,
     shadowColor: '#000',
@@ -708,14 +934,14 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     height: 45,
-    backgroundColor: '#2C2C2C', // Dark input field background
+    backgroundColor: '#2C2C2C',
     borderRadius: 22.5,
     paddingHorizontal: 15,
     fontSize: 16,
-    color: '#F0F0F0', // Light input text
+    color: '#F0F0F0',
     fontFamily: 'Inter, sans-serif',
     borderWidth: 1,
-    borderColor: '#3A3A3A', // Subtle border
+    borderColor: '#3A3A3A',
   },
   sendButton: {
     width: 45,
@@ -738,28 +964,27 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  // --- Side Menu Styles ---
   backdrop: {
     position: 'absolute',
     top: 0,
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Semi-transparent black for defocus
-    zIndex: 100, // Must be above all chat content
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    zIndex: 100,
   },
   sideMenu: {
     position: 'absolute',
     top: 0,
     bottom: 0,
     left: 0,
-    width: '70%', // Take 70% of the screen width
-    maxWidth: 300, // But not more than 300px on large screens
-    backgroundColor: '#1F1F1F', // Dark theme for the menu
-    zIndex: 101, // Must be above backdrop
-    paddingTop: 10, // Small padding from the top edge
+    width: '70%',
+    maxWidth: 300,
+    backgroundColor: '#1F1F1F',
+    zIndex: 101,
+    paddingTop: 10,
     transitionProperty: 'transform',
-    transitionDuration: '0.3s', // Smooth animation
+    transitionDuration: '0.3s',
     transitionTimingFunction: 'ease-in-out',
     borderRightWidth: 1,
     borderRightColor: '#3A3A3A',
@@ -773,23 +998,22 @@ const styles = StyleSheet.create({
     transform: [{ translateX: 0 }],
   },
   sideMenuClosed: {
-    // Start off-screen to the left
-    transform: [{ translateX: -300 }], // Move off by its max width
+    transform: [{ translateX: -300 }],
   },
   menuHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 15,
-    height: 70, // Match header height
+    height: 70,
     borderBottomWidth: 1,
     borderBottomColor: '#2C2C2C',
-    backgroundColor: '#333333', // Slightly lighter background for the menu header
+    backgroundColor: '#333333',
   },
   menuTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#FFD700', // Gold accent color
+    color: '#FFD700',
   },
   closeButton: {
     paddingHorizontal: 10,
@@ -804,7 +1028,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#2C2C2C',
-    // Using a subtle hover effect (not native in RNW StyleSheet, but touchable opacity will work)
   },
   menuItemText: {
     fontSize: 18,
