@@ -611,10 +611,15 @@ const App = () => {
       )}
 
       {/* Side Menu Drawer */}
-      <View style={[
-        styles.sideMenu,
-        isMenuOpen ? styles.sideMenuOpen : styles.sideMenuClosed,
-      ]}>
+      <View
+        pointerEvents={isMenuOpen ? 'auto' : 'none'}
+        accessibilityElementsHidden={!isMenuOpen}
+        importantForAccessibility={isMenuOpen ? 'yes' : 'no-hide-descendants'}
+        style={[
+          styles.sideMenu,
+          isMenuOpen ? styles.sideMenuOpen : styles.sideMenuClosed,
+        ]}
+      >
         <View style={styles.menuHeader}>
           <Text style={styles.menuTitle}>Navigation</Text>
           <TouchableOpacity onPress={handleMenuPress} style={styles.closeButton}>
@@ -1024,9 +1029,11 @@ const styles = StyleSheet.create({
   },
   sideMenuOpen: {
     transform: [{ translateX: 0 }],
+    opacity: 1,
   },
   sideMenuClosed: {
     transform: [{ translateX: -300 }],
+    opacity: 0,
   },
   menuHeader: {
     flexDirection: 'row',
