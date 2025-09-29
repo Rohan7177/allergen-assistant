@@ -10,10 +10,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      {/*
-        Ensures that the html, body, and the Next.js root div (__next)
-        all take up the full height of the viewport.
-      */}
       <head>
         <style dangerouslySetInnerHTML={{ __html: `
           html, body, #__next {
