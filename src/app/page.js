@@ -366,7 +366,7 @@ const App = () => {
           throw new Error(data.message || "Failed to get a response from the kitchen.");
       }
 
-      const botResponseText = data.response; // Response from the LLM
+      const botResponseText = data.response; 
 
       // 3. Start typing effect
       setIsLoading(false); 
@@ -376,7 +376,6 @@ const App = () => {
       console.error("Failed to fetch from LLM:", error);
       setIsLoading(false);
 
-      // Replace the placeholder message with the error message
       setMessages((prevMessages) => {
         const lastMsgIndex = prevMessages.length - 1;
         if (lastMsgIndex >= 0 && prevMessages[lastMsgIndex].isPlaceholder) {
@@ -395,7 +394,7 @@ const App = () => {
     }
   };
 
-  // Image upload functions (omitted for brevity, assume they work as before)
+  // Image upload functions 
   const handleImageUpload = () => {
     if (isTyping || isLoading || isMenuOpen || isAllergenModalOpen) return;
     if (fileInputRef.current) {
@@ -477,7 +476,7 @@ const App = () => {
         setHasSelectedInitialAllergens(true);
     }
     
-    setIsMenuOpen(false); // Close side menu when modal is closed/submitted
+    setIsMenuOpen(false); 
   };
 
 
@@ -485,7 +484,7 @@ const App = () => {
   const handleClearConversation = () => {
     initializeConversationForMode(chatMode);
     setIsMenuOpen(false);
-    setIsAllergenModalOpen(false); // Close any open modal
+    setIsAllergenModalOpen(false); 
   };
 
   // Function for the new Menu button (toggle)
@@ -714,8 +713,8 @@ const modalStyles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)', // Darker backdrop to emphasize modal
-        zIndex: 200, // Highest zIndex
+        backgroundColor: 'rgba(0, 0, 0, 0.8)', 
+        zIndex: 200, 
         alignItems: 'center',
         justifyContent: 'center',
         padding: 20,
@@ -723,7 +722,7 @@ const modalStyles = StyleSheet.create({
     modalCard: {
         width: '100%',
         maxWidth: 500,
-        backgroundColor: '#1F1F1F', // Dark card background
+        backgroundColor: '#1F1F1F', 
         borderRadius: 20,
         overflow: 'hidden',
         maxHeight: '90%',
@@ -745,7 +744,7 @@ const modalStyles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#FFD700', // Gold accent
+        color: '#FFD700', 
         fontFamily: 'Inter, sans-serif',
     },
     closeButton: {
@@ -764,11 +763,11 @@ const modalStyles = StyleSheet.create({
     allergenItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        width: '48%', // Two columns, slightly less than 50% for spacing
+        width: '48%', 
         marginVertical: 10,
     },
     selectAllItem: {
-        width: '100%', // Full width for Select All
+        width: '100%',
         marginTop: 20,
         paddingTop: 10,
         borderTopWidth: 1,
@@ -785,7 +784,7 @@ const modalStyles = StyleSheet.create({
         justifyContent: 'center',
     },
     checkboxChecked: {
-        backgroundColor: '#00C853', // Green check
+        backgroundColor: '#00C853', 
         borderColor: '#00C853',
     },
     checkMark: {
@@ -800,7 +799,7 @@ const modalStyles = StyleSheet.create({
     },
     allergenTextBold: {
         fontSize: 18,
-        color: '#FFD700', // Gold for emphasis
+        color: '#FFD700', 
         fontWeight: 'bold',
         fontFamily: 'Inter, sans-serif',
     },
@@ -811,13 +810,13 @@ const modalStyles = StyleSheet.create({
     },
     noteText: {
         fontSize: 14,
-        color: '#A0A0A0', // Subtle gray
+        color: '#A0A0A0', 
         textAlign: 'center',
         marginBottom: 15,
         fontStyle: 'italic',
     },
     submitButton: {
-        backgroundColor: '#00C853', // Green primary action
+        backgroundColor: '#00C853', 
         padding: 15,
         borderRadius: 12,
         alignItems: 'center',
@@ -840,7 +839,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     flexDirection: 'column',
-    backgroundColor: '#121212', // Very Dark Background
+    backgroundColor: '#121212',
     position: 'absolute',
     top: 0,
     bottom: 0,

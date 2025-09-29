@@ -2,7 +2,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from 'next/server';
 
-// Initialize Google Generative AI
 const API_KEY = process.env.GOOGLE_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
 
@@ -10,7 +9,7 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 function convertToGenerativePart(base64Data, mimeType) {
   return {
     inlineData: {
-      data: base64Data.split(',')[1], // Strip the 'data:mime/type;base64,' prefix
+      data: base64Data.split(',')[1], 
       mimeType,
     },
   };
