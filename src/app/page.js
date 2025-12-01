@@ -229,6 +229,7 @@ const App = () => {
   // Tracks if the user has completed the initial selection flow
   const [hasSelectedInitialAllergens, setHasSelectedInitialAllergens] = useState(false); 
   const [chatMode, setChatMode] = useState(CHAT_MODES.ALLERGEN);
+  const [isHydratingPreferences, setIsHydratingPreferences] = useState(true);
   
   // State/Refs for typing effect (re-introduced for smooth UI)
   const [isTyping, setIsTyping] = useState(false);
@@ -261,10 +262,46 @@ const App = () => {
   }, [chatMode, initializeConversationForMode]);
 
   useEffect(() => {
-    if (!hasSelectedInitialAllergens) {
+    const loadPreferences = async () => {
+      try {
+        const response = await fetch('/api/preferences');
+
+        if (!response.ok) {
+          throw new Error(`Failed to load preferences (status: ${response.status})`);
+        }
+
+        const data = await response.json();
+
+        if (Array.isArray(data.selectedAllergens)) {
+          const sanitizedAllergens = Array.from(
+            new Set(
+              data.selectedAllergens
+                .filter((item) => typeof item === 'string' && item.trim().length > 0)
+                .map((item) => item.toLowerCase())
+            )
+          );
+
+          setSelectedAllergens(sanitizedAllergens);
+        }
+
+        if (typeof data.hasSelectedInitialAllergens === 'boolean') {
+          setHasSelectedInitialAllergens(data.hasSelectedInitialAllergens);
+        }
+      } catch (error) {
+        console.error('Failed to load allergen preferences:', error);
+      } finally {
+        setIsHydratingPreferences(false);
+      }
+    };
+
+    loadPreferences();
+  }, []);
+
+  useEffect(() => {
+    if (!isHydratingPreferences && !hasSelectedInitialAllergens) {
       setIsAllergenModalOpen(true);
     }
-  }, [hasSelectedInitialAllergens]);
+  }, [hasSelectedInitialAllergens, isHydratingPreferences]);
 
   // Auto-scroll to bottom whenever messages change or typing state updates
   useEffect(() => {
@@ -334,7 +371,7 @@ const App = () => {
   // Function to handle sending a text message
   const handleSendTextMessage = async () => {
     // Block sending if a modal/menu is open or if busy
-    if (isTyping || isLoading || isMenuOpen || isAllergenModalOpen) return; 
+    if (isTyping || isLoading || isMenuOpen || isAllergenModalOpen || isHydratingPreferences) return; 
 
     const text = inputMessage.trim();
     if (!text) return;
@@ -396,14 +433,14 @@ const App = () => {
 
   // Image upload functions 
   const handleImageUpload = () => {
-    if (isTyping || isLoading || isMenuOpen || isAllergenModalOpen) return;
+    if (isTyping || isLoading || isMenuOpen || isAllergenModalOpen || isHydratingPreferences) return;
     if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
 
   const handleFileChange = async (event) => {
-    if (isTyping || isLoading || isMenuOpen || isAllergenModalOpen) return;
+    if (isTyping || isLoading || isMenuOpen || isAllergenModalOpen || isHydratingPreferences) return;
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
@@ -467,14 +504,52 @@ const App = () => {
 
 
   // Function to handle Allergen Modal submission
+  const persistPreferences = useCallback(async ({
+    selectedAllergens: allergens,
+    hasSelectedInitialAllergens: initialFlag,
+  }) => {
+    try {
+      const response = await fetch('/api/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          selectedAllergens: allergens,
+          hasSelectedInitialAllergens: initialFlag,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to persist preferences (status: ${response.status})`);
+      }
+    } catch (error) {
+      console.error('Failed to persist allergen preferences:', error);
+    }
+  }, []);
+
   const handleAllergenSubmit = (newAllergens) => {
-    setSelectedAllergens(newAllergens);
+    const sanitizedAllergens = Array.from(
+      new Set(
+        (Array.isArray(newAllergens) ? newAllergens : [])
+          .filter((item) => typeof item === 'string' && item.trim().length > 0)
+          .map((item) => item.toLowerCase())
+      )
+    );
+
+    setSelectedAllergens(sanitizedAllergens);
     setIsAllergenModalOpen(false);
+
+    let nextHasSelectedInitialAllergens = hasSelectedInitialAllergens;
     
     // Check if it's the first time setting preferences
     if (!hasSelectedInitialAllergens) {
+        nextHasSelectedInitialAllergens = true;
         setHasSelectedInitialAllergens(true);
     }
+
+    persistPreferences({
+      selectedAllergens: sanitizedAllergens,
+      hasSelectedInitialAllergens: nextHasSelectedInitialAllergens,
+    });
     
     setIsMenuOpen(false); 
   };
@@ -490,7 +565,7 @@ const App = () => {
   // Function for the new Menu button (toggle)
   const handleMenuPress = () => {
     // Only allow opening if not busy and no modal is open
-    if (!isLoading && !isTyping && !isAllergenModalOpen) {
+    if (!isLoading && !isTyping && !isAllergenModalOpen && !isHydratingPreferences) {
         setIsMenuOpen(prev => !prev);
     }
   };
@@ -512,7 +587,7 @@ const App = () => {
 
   // Check if any critical UI element is open/active to disable inputs
   const isOverlayActive = isMenuOpen || isAllergenModalOpen;
-  const isInputDisabled = isLoading || isTyping || isOverlayActive;
+  const isInputDisabled = isLoading || isTyping || isOverlayActive || isHydratingPreferences;
   const headerTitle = chatMode === CHAT_MODES.ALTERNATIVE ? 'Food Alternative Recommender' : 'Allergen Identifier';
   const inputPlaceholder = chatMode === CHAT_MODES.ALTERNATIVE
     ? "Describe the dish you need an allergen-safe alternative for"
