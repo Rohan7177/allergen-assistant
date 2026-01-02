@@ -14,6 +14,7 @@ export async function POST(request) {
   try {
     body = await request.json();
   } catch (error) {
+    console.error('Failed to parse chat request body:', error);
     return NextResponse.json({ message: 'Invalid JSON payload.' }, { status: 400 });
   }
 
