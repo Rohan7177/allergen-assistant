@@ -1,22 +1,39 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
+import {
+  sanitizeAllergenList,
+  validateAndNormalizeText,
+} from "../../../lib/inputValidation";
 
 const API_KEY = process.env.GOOGLE_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 export async function POST(request) {
-  const { userPrompt, selectedAllergens } = await request.json();
-
-  if (!userPrompt || typeof userPrompt !== "string") {
+  let body;
+  try {
+    body = await request.json();
+  } catch (error) {
     return NextResponse.json(
-      { message: "A prompt describing the dish or craving is required." },
+      { message: "Invalid JSON payload." },
       { status: 400 }
     );
   }
 
-  const allergenList = Array.isArray(selectedAllergens) ? selectedAllergens : [];
-  const allergenListString = allergenList.length
-    ? allergenList.map((a) => a.toUpperCase()).join(", ")
+  const { userPrompt, selectedAllergens } = body ?? {};
+
+  let sanitizedPrompt;
+  try {
+    sanitizedPrompt = validateAndNormalizeText(userPrompt, { required: true });
+  } catch (validationError) {
+    return NextResponse.json(
+      { message: validationError.message || "A prompt describing the dish or craving is required." },
+      { status: 400 }
+    );
+  }
+
+  const safeAllergens = sanitizeAllergenList(selectedAllergens);
+  const allergenListString = safeAllergens.length
+    ? safeAllergens.map((a) => a.toUpperCase()).join(", ")
     : "NONE_SELECTED";
 
   try {
@@ -25,7 +42,7 @@ export async function POST(request) {
     const prompt = `You are a Michelin-level chef and food scientist channeling the charismatic narration of Alton Brown. A user will describe a dish they currently cannot eat or an experience they are craving, along with the allergens they must avoid.
 
 User allergen watchlist (uppercase): [${allergenListString}]
-User description: "${userPrompt}"
+User description: "${sanitizedPrompt}"
 
 Your task is to propose satisfying alternative dishes, cooking techniques, or ingredient swaps that mimic the experience while avoiding every allergen on the user's watchlist.
 

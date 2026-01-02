@@ -1,22 +1,40 @@
 // src/app/api/chat/route.js
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from 'next/server';
+import {
+  sanitizeAllergenList,
+  validateAndNormalizeText,
+} from '../../../lib/inputValidation';
 
 const API_KEY = process.env.GOOGLE_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 export async function POST(request) {
-  // Extract the dishName AND selectedAllergens from the request body
-  const { dishName, selectedAllergens } = await request.json(); 
-
-  if (!dishName) {
-    return NextResponse.json({ message: 'Dish name is required.' }, { status: 400 });
+  let body;
+  try {
+    body = await request.json();
+  } catch (error) {
+    return NextResponse.json({ message: 'Invalid JSON payload.' }, { status: 400 });
   }
 
+  const { dishName, selectedAllergens } = body ?? {};
+
+  let sanitizedDishName;
+  try {
+    sanitizedDishName = validateAndNormalizeText(dishName, { required: true });
+  } catch (validationError) {
+    return NextResponse.json(
+      { message: validationError.message || 'Dish name is invalid.' },
+      { status: 400 }
+    );
+  }
+
+  const safeAllergens = sanitizeAllergenList(selectedAllergens);
+
   // Convert the array of selected allergens into a comma-separated string for the prompt
-  const allergenListString = selectedAllergens && selectedAllergens.length > 0 
-    ? selectedAllergens.map(a => a.toUpperCase()).join(', ') 
-    : 'NONE_SELECTED'; 
+  const allergenListString = safeAllergens.length > 0
+    ? safeAllergens.map((a) => a.toUpperCase()).join(', ')
+    : 'NONE_SELECTED';
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
@@ -32,7 +50,7 @@ You MUST follow the allergen filtering rules below:
 5. If **NONE** of the user's selected allergens are found in the dish, you must output the single line of text: "**None of your selected allergens found.**"
 6. After the allergen output (either the list or the 'None found' message), **assess the specific dish's likelihood of cross-contamination (e.g., high, low, or moderate) based on common kitchen practices and ingredients, then provide a general warning about cross-contamination in shared kitchen environments,** and always advise the user to confirm with the establishment.
 
-The dish name is: "${dishName}"`;
+The dish name is: "${sanitizedDishName}"`;
 
     const result = await model.generateContent(prompt);
     const responseText = result.response.text(); 

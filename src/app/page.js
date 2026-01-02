@@ -11,6 +11,13 @@ import {
   Image,
   Platform,
 } from 'react-native-web';
+import {
+  sanitizeTextInput,
+  isSafeText,
+  sanitizeAllergenList,
+  validationConstants,
+  validateImagePayload,
+} from '../lib/inputValidation';
 
 // --- Configuration ---
 const ALLERGEN_OPTIONS = [
@@ -19,6 +26,7 @@ const ALLERGEN_OPTIONS = [
     'Soy', 'Gluten'
 ];
 const ALLERGEN_OPTIONS_FLAT = ALLERGEN_OPTIONS.map(a => a.toLowerCase());
+const { MAX_IMAGE_SIZE_BYTES, ALLOWED_IMAGE_MIME_TYPES } = validationConstants;
 
 
 const CHAT_MODES = {
@@ -220,6 +228,7 @@ const App = () => {
   const [inputMessage, setInputMessage] = useState('');
   const scrollViewRef = useRef();
   const [isLoading, setIsLoading] = useState(false);
+  const [inputError, setInputError] = useState(null);
   
   // --- New State for Menu and Allergens ---
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -273,15 +282,16 @@ const App = () => {
         const data = await response.json();
 
         if (Array.isArray(data.selectedAllergens)) {
-          const sanitizedAllergens = Array.from(
-            new Set(
-              data.selectedAllergens
-                .filter((item) => typeof item === 'string' && item.trim().length > 0)
-                .map((item) => item.toLowerCase())
-            )
-          );
-
+          const sanitizedAllergens = sanitizeAllergenList(data.selectedAllergens);
           setSelectedAllergens(sanitizedAllergens);
+
+          const normalizedCount = data.selectedAllergens.filter(
+            (item) => typeof item === 'string' && item.trim().length > 0
+          ).length;
+
+          if (normalizedCount > sanitizedAllergens.length) {
+            setInputError('Some saved allergens were invalid and have been ignored.');
+          }
         }
 
         if (typeof data.hasSelectedInitialAllergens === 'boolean') {
@@ -289,6 +299,7 @@ const App = () => {
         }
       } catch (error) {
         console.error('Failed to load allergen preferences:', error);
+        setInputError('Failed to load allergen preferences.');
       } finally {
         setIsHydratingPreferences(false);
       }
@@ -368,16 +379,41 @@ const App = () => {
   }, [clearTypingInterval]);
 
 
+  const handleInputChange = (value) => {
+    const sanitized = sanitizeTextInput(value);
+    const trimmedOriginal = typeof value === 'string' ? value.trim() : '';
+    setInputMessage(sanitized);
+
+    if (trimmedOriginal.length > 0 && !sanitized.length) {
+      setInputError('Only letters, numbers, and basic punctuation are allowed.');
+    } else {
+      setInputError(null);
+    }
+  };
+
+
   // Function to handle sending a text message
   const handleSendTextMessage = async () => {
     // Block sending if a modal/menu is open or if busy
     if (isTyping || isLoading || isMenuOpen || isAllergenModalOpen || isHydratingPreferences) return; 
 
-    const text = inputMessage.trim();
-    if (!text) return;
+    const sanitizedInput = sanitizeTextInput(inputMessage);
+    if (!sanitizedInput) {
+      setInputError('Please enter a dish name or request before sending.');
+      return;
+    }
+
+    if (!isSafeText(sanitizedInput)) {
+      setInputError('Message contains unsupported characters.');
+      return;
+    }
+
+    setInputError(null);
+
+    const safeAllergens = sanitizeAllergenList(selectedAllergens);
 
     // 1. Add user's message and bot placeholder
-    const newUserMessage = { text: text, isUser: true, isTypingComplete: true };
+    const newUserMessage = { text: sanitizedInput, isUser: true, isTypingComplete: true };
     const newBotPlaceholder = { isUser: false, isBot: true, isPlaceholder: true }; 
     setMessages((prevMessages) => [...prevMessages, newUserMessage, newBotPlaceholder]);
     setInputMessage(''); 
@@ -388,8 +424,8 @@ const App = () => {
       const isAlternativeMode = chatMode === CHAT_MODES.ALTERNATIVE;
       const endpoint = isAlternativeMode ? '/api/food-alternative' : '/api/chat';
       const payload = isAlternativeMode
-        ? { userPrompt: text, selectedAllergens }
-        : { dishName: text, selectedAllergens };
+        ? { userPrompt: sanitizedInput, selectedAllergens: safeAllergens }
+        : { dishName: sanitizedInput, selectedAllergens: safeAllergens };
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -435,6 +471,7 @@ const App = () => {
   const handleImageUpload = () => {
     if (isTyping || isLoading || isMenuOpen || isAllergenModalOpen || isHydratingPreferences) return;
     if (fileInputRef.current) {
+      setInputError(null);
       fileInputRef.current.click();
     }
   };
@@ -443,9 +480,27 @@ const App = () => {
     if (isTyping || isLoading || isMenuOpen || isAllergenModalOpen || isHydratingPreferences) return;
     const file = event.target.files[0];
     if (file) {
+      if (!ALLOWED_IMAGE_MIME_TYPES.has(file.type)) {
+        setInputError('Only JPEG, PNG, GIF, WEBP, HEIC, or HEIF images are allowed.');
+        event.target.value = '';
+        return;
+      }
+      if (file.size > MAX_IMAGE_SIZE_BYTES) {
+        setInputError('Image files must be 5MB or smaller.');
+        event.target.value = '';
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = async () => {
         const imageDataUrl = reader.result;
+
+        try {
+          validateImagePayload({ dataUrl: imageDataUrl, mimeType: file.type, size: file.size });
+          setInputError(null);
+        } catch (validationError) {
+          setInputError(validationError.message || 'We couldn’t validate that image. Please choose a different file.');
+          return;
+        }
 
         const newBotPlaceholder = { isUser: false, isBot: true, isPlaceholder: true };
         setMessages((prevMessages) => [
@@ -456,6 +511,8 @@ const App = () => {
 
         setIsLoading(true);
 
+        const safeAllergens = sanitizeAllergenList(selectedAllergens);
+
         try {
           const response = await fetch('/api/image-chat', {
             method: 'POST',
@@ -463,7 +520,7 @@ const App = () => {
             body: JSON.stringify({
               imageDataUrl,
               mimeType: file.type,
-              selectedAllergens,
+              selectedAllergens: safeAllergens,
             }),
           });
 
@@ -527,13 +584,7 @@ const App = () => {
   }, []);
 
   const handleAllergenSubmit = (newAllergens) => {
-    const sanitizedAllergens = Array.from(
-      new Set(
-        (Array.isArray(newAllergens) ? newAllergens : [])
-          .filter((item) => typeof item === 'string' && item.trim().length > 0)
-          .map((item) => item.toLowerCase())
-      )
-    );
+    const sanitizedAllergens = sanitizeAllergenList(newAllergens);
 
     setSelectedAllergens(sanitizedAllergens);
     setIsAllergenModalOpen(false);
@@ -557,6 +608,7 @@ const App = () => {
 
   // Function to clear all messages
   const handleClearConversation = () => {
+    setInputError(null);
     initializeConversationForMode(chatMode);
     setIsMenuOpen(false);
     setIsAllergenModalOpen(false); 
@@ -698,7 +750,7 @@ const App = () => {
             placeholder={inputPlaceholder}
             placeholderTextColor="#A0A0A0"
             value={inputMessage}
-            onChangeText={setInputMessage}
+            onChangeText={handleInputChange}
             onSubmitEditing={handleSendTextMessage}
             returnKeyType="send"
             editable={!isInputDisabled}
@@ -712,6 +764,12 @@ const App = () => {
             <Text style={styles.sendButtonText}>&#x27A4;</Text>
           </TouchableOpacity>
         </View>
+
+        {inputError && (
+          <Text style={styles.inputErrorText} accessibilityRole="alert">
+            {inputError}
+          </Text>
+        )}
       </View>
 
 
@@ -1111,6 +1169,13 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 22,
     fontWeight: 'bold',
+  },
+  inputErrorText: {
+    marginTop: 8,
+    color: '#FF8A80',
+    textAlign: 'center',
+    fontSize: 14,
+    fontFamily: 'Inter, sans-serif',
   },
 
   backdrop: {

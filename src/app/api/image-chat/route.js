@@ -1,6 +1,10 @@
 // src/app/api/image-chat/route.js
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from 'next/server';
+import {
+  sanitizeAllergenList,
+  validateImagePayload,
+} from '../../../lib/inputValidation';
 
 const API_KEY = process.env.GOOGLE_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
@@ -16,16 +20,29 @@ function convertToGenerativePart(base64Data, mimeType) {
 }
 
 export async function POST(request) {
-  // Expecting image data (base64 URL), the associated prompt, and selected allergens
-  const { imageDataUrl, mimeType, selectedAllergens } = await request.json(); 
-
-  if (!imageDataUrl || !mimeType) {
-    return NextResponse.json({ message: 'Image data and mime type are required.' }, { status: 400 });
+  let body;
+  try {
+    body = await request.json();
+  } catch (error) {
+    return NextResponse.json({ message: 'Invalid JSON payload.' }, { status: 400 });
   }
 
+  const { imageDataUrl, mimeType, selectedAllergens } = body ?? {};
+
+  try {
+    validateImagePayload({ dataUrl: imageDataUrl, mimeType, size: body?.fileSize });
+  } catch (validationError) {
+    return NextResponse.json(
+      { message: validationError.message || 'Invalid image payload.' },
+      { status: 400 }
+    );
+  }
+
+  const safeAllergens = sanitizeAllergenList(selectedAllergens);
+
   // Convert the array of selected allergens into a comma-separated string
-  const allergenListString = selectedAllergens && selectedAllergens.length > 0 
-    ? selectedAllergens.map(a => a.toUpperCase()).join(', ') 
+  const allergenListString = safeAllergens.length > 0
+    ? safeAllergens.map(a => a.toUpperCase()).join(', ')
     : 'NONE_SELECTED'; 
 
   const imagePart = convertToGenerativePart(imageDataUrl, mimeType);
