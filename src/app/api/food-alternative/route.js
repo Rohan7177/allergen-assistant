@@ -10,7 +10,10 @@ import {
 } from "../../../lib/geminiHelpers";
 
 const API_KEY = process.env.GOOGLE_API_KEY;
-const genAI = new GoogleGenerativeAI(API_KEY);
+const ALTERNATIVE_MODEL =
+  process.env.GEMINI_ALTERNATIVE_MODEL ||
+  process.env.GEMINI_CHAT_MODEL ||
+  'gemini-2.5-flash';
 
 export async function POST(request) {
   if (!API_KEY) {
@@ -50,7 +53,8 @@ export async function POST(request) {
     : "NONE_SELECTED";
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const genAI = new GoogleGenerativeAI(API_KEY);
+    const model = genAI.getGenerativeModel({ model: ALTERNATIVE_MODEL });
 
     const prompt = `You are a Michelin-level chef and food scientist channeling the charismatic narration of Alton Brown. A user will describe a dish they currently cannot eat or an experience they are craving, along with the allergens they must avoid.
 
@@ -74,7 +78,10 @@ Keep the tone warm, curious, and empowering. Avoid repeating the user's exact wo
     const result = await model.generateContent({ contents: [userContent] });
     const responseText = extractModelText(result);
 
-    return NextResponse.json({ response: responseText }, { status: 200 });
+    return NextResponse.json(
+      { response: responseText, model: ALTERNATIVE_MODEL },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Error communicating with Gemini LLM (food alternative):", error);
     return NextResponse.json(

@@ -17,7 +17,7 @@ const API_KEY = process.env.GOOGLE_API_KEY;
 const REQUESTED_CHAT_MODEL =
   process.env.GEMINI_CHAT_MODEL ||
   process.env.GEMINI_TEXT_MODEL ||
-  'gemini-1.5-flash';
+  'gemini-2.5-flash';
 
 const CHAT_MODEL_CANDIDATES = buildModelCandidateList(REQUESTED_CHAT_MODEL);
 

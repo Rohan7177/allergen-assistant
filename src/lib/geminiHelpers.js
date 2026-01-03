@@ -1,18 +1,9 @@
 const normalizeModelName = (name) =>
   typeof name === 'string' ? name.trim().replace(/^models\//i, '') : '';
 
-const DEFAULT_TEXT_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-1.5-flash-latest',
-  'gemini-1.5-pro-latest',
-  'gemini-1.0-pro-001',
-];
+const DEFAULT_TEXT_MODELS = ['gemini-2.5-flash'];
 
-const DEFAULT_MULTIMODAL_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-1.5-flash-latest',
-  'gemini-1.5-pro-latest',
-];
+const DEFAULT_MULTIMODAL_MODELS = ['gemini-2.5-flash'];
 
 export const buildModelCandidateList = (
   requestedModel,
