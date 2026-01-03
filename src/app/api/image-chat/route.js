@@ -5,6 +5,7 @@ import {
   sanitizeAllergenList,
   validateImagePayload,
 } from '../../../lib/inputValidation';
+import { buildUserTextContent, extractModelText } from '../../../lib/geminiHelpers';
 
 const API_KEY = process.env.GOOGLE_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
@@ -20,6 +21,14 @@ function convertToGenerativePart(base64Data, mimeType) {
 }
 
 export async function POST(request) {
+  if (!API_KEY) {
+    console.error('GOOGLE_API_KEY environment variable is not set.');
+    return NextResponse.json(
+      { message: 'Server misconfigured: missing Gemini API key.' },
+      { status: 500 }
+    );
+  }
+
   let body;
   try {
     body = await request.json();
@@ -66,18 +75,16 @@ Output rules you must follow without exception:
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
+    const textPart = buildUserTextContent(textPrompt);
     const contents = [
       {
-        role: "user",
-        parts: [
-          { text: textPrompt },
-          imagePart,
-        ],
+        role: textPart.role,
+        parts: [...textPart.parts, imagePart],
       },
     ];
 
     const result = await model.generateContent({ contents });
-    const responseText = result.response.text(); 
+    const responseText = extractModelText(result);
 
     return NextResponse.json({ response: responseText }, { status: 200 });
 

@@ -5,11 +5,23 @@ import {
   sanitizeAllergenList,
   validateAndNormalizeText,
 } from '../../../lib/inputValidation';
+import {
+  buildUserTextContent,
+  extractModelText,
+} from '../../../lib/geminiHelpers';
 
 const API_KEY = process.env.GOOGLE_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 export async function POST(request) {
+  if (!API_KEY) {
+    console.error('GOOGLE_API_KEY environment variable is not set.');
+    return NextResponse.json(
+      { message: 'Server misconfigured: missing Gemini API key.' },
+      { status: 500 }
+    );
+  }
+
   let body;
   try {
     body = await request.json();
@@ -53,8 +65,9 @@ You MUST follow the allergen filtering rules below:
 
 The dish name is: "${sanitizedDishName}"`;
 
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text(); 
+    const userContent = buildUserTextContent(prompt);
+    const result = await model.generateContent({ contents: [userContent] });
+    const responseText = extractModelText(result);
 
     return NextResponse.json({ response: responseText }, { status: 200 });
 
