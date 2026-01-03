@@ -380,7 +380,7 @@ const App = () => {
 
 
   const handleInputChange = (value) => {
-    const sanitized = sanitizeTextInput(value);
+    const sanitized = sanitizeTextInput(value, { preserveWhitespace: true });
     const trimmedOriginal = typeof value === 'string' ? value.trim() : '';
     setInputMessage(sanitized);
 

@@ -52,15 +52,23 @@ export const sanitizeAllergenList = (list) => {
   return Array.from(new Set(sanitized));
 };
 
-export const sanitizeTextInput = (value) => {
+export const sanitizeTextInput = (value, { preserveWhitespace = false } = {}) => {
   if (typeof value !== 'string') return '';
 
-  const trimmed = value.trim();
-  if (!trimmed) return '';
+  let working = value;
 
-  const withoutAngleBrackets = trimmed.replace(/[<>]/g, '');
-  const condensedWhitespace = withoutAngleBrackets.replace(/\s+/g, ' ');
-  const safeOnly = condensedWhitespace.replace(UNSAFE_TEXT_CHARS_REGEX, '');
+  if (!preserveWhitespace) {
+    working = working.trim();
+    if (!working) return '';
+  }
+
+  const withoutAngleBrackets = working.replace(/[<>]/g, '');
+  const whitespaceHandled = preserveWhitespace
+    ? withoutAngleBrackets
+    : withoutAngleBrackets.replace(/\s+/g, ' ');
+  const safeOnly = whitespaceHandled.replace(UNSAFE_TEXT_CHARS_REGEX, '');
+
+  if (!safeOnly) return '';
 
   return safeOnly.slice(0, MAX_TEXT_LENGTH);
 };
