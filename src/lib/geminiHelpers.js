@@ -16,6 +16,37 @@ export const extractModelText = (result) => {
 
   const { response } = result;
 
+  const formatBlockedMessage = () => {
+    const blockReason = response?.promptFeedback?.blockReason;
+    const blockMessage = response?.promptFeedback?.blockReasonMessage;
+    const safetyRatings = response?.promptFeedback?.safetyRatings ?? [];
+
+    const reasonText = blockReason ? blockReason.replace(/_/g, ' ').toLowerCase() : 'unspecified safety concern';
+
+    const categorySummary = safetyRatings
+      .map((rating) => {
+        const category = rating?.category?.replace(/_/g, ' ').toLowerCase();
+        const probability = rating?.probability?.replace(/_/g, ' ').toLowerCase();
+        if (!category) return null;
+        return probability ? `${category} (${probability})` : category;
+      })
+      .filter(Boolean)
+      .join(', ');
+
+    const details = categorySummary ? ` Categories flagged: ${categorySummary}.` : '';
+    const message = blockMessage ? ` ${blockMessage}` : '';
+
+    return `Gemini was unable to produce a response due to ${reasonText}.${message}${details} Please adjust the prompt and try again.`;
+  };
+
+  const consolidateSegments = (segments) =>
+    segments
+      .filter((segment) => typeof segment === 'string')
+      .map((segment) => segment.trim())
+      .filter((segment) => segment.length > 0)
+      .join('\n')
+      .trim();
+
   if (typeof response.text === 'function') {
     try {
       const helperText = response.text();
@@ -27,23 +58,27 @@ export const extractModelText = (result) => {
     }
   }
 
-  const candidates = response.candidates;
-  if (!Array.isArray(candidates) || candidates.length === 0) {
-    throw new Error('Gemini response did not include any candidates.');
+  const candidates = Array.isArray(response.candidates) ? response.candidates : [];
+
+  const textSegments = [];
+  for (const candidate of candidates) {
+    const parts = Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [];
+    for (const part of parts) {
+      if (typeof part?.text === 'string') {
+        textSegments.push(part.text);
+      }
+    }
   }
 
-  const parts = candidates[0]?.content?.parts;
-  if (!Array.isArray(parts) || parts.length === 0) {
-    throw new Error('Gemini response candidate did not include text parts.');
+  const consolidated = consolidateSegments(textSegments);
+
+  if (consolidated) {
+    return consolidated;
   }
 
-  const textSegments = parts
-    .map((part) => (typeof part?.text === 'string' ? part.text : null))
-    .filter((segment) => typeof segment === 'string' && segment.trim().length > 0);
-
-  if (textSegments.length === 0) {
-    throw new Error('Gemini response did not contain text content.');
+  if (response?.promptFeedback) {
+    return formatBlockedMessage();
   }
 
-  return textSegments.join('').trim();
+  return 'Gemini did not return any textual content. Please try again with a different prompt.';
 };
