@@ -6,12 +6,20 @@ import {
   validateAndNormalizeText,
 } from '../../../lib/inputValidation';
 import {
+  buildModelCandidateList,
   buildUserTextContent,
   extractModelText,
+  isRetryableModelError,
+  summarizeModelAccessIssue,
 } from '../../../lib/geminiHelpers';
 
 const API_KEY = process.env.GOOGLE_API_KEY;
-const genAI = new GoogleGenerativeAI(API_KEY);
+const REQUESTED_CHAT_MODEL =
+  process.env.GEMINI_CHAT_MODEL ||
+  process.env.GEMINI_TEXT_MODEL ||
+  'gemini-1.5-flash';
+
+const CHAT_MODEL_CANDIDATES = buildModelCandidateList(REQUESTED_CHAT_MODEL);
 
 export async function POST(request) {
   if (!API_KEY) {
@@ -50,7 +58,9 @@ export async function POST(request) {
     : 'NONE_SELECTED';
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const genAI = new GoogleGenerativeAI(API_KEY);
+    const triedModels = [];
+    let lastModelError = null;
 
     // The prompt enforces the allergen filtering logic.
     const prompt = `You are a food expert who helps people find allergens, speaking in a charismatic style like Alton Brown from the Food Network.
@@ -62,19 +72,57 @@ You MUST follow the allergen filtering rules below:
 4. If the dish contains **ANY** of the user's selected allergens, list those found allergens.
 5. If **NONE** of the user's selected allergens are found in the dish, you must output the single line of text: "**None of your selected allergens found.**"
 6. After the allergen output (either the list or the 'None found' message), **assess the specific dish's likelihood of cross-contamination (e.g., high, low, or moderate) based on common kitchen practices and ingredients, then provide a general warning about cross-contamination in shared kitchen environments,** and always advise the user to confirm with the establishment.
-
 The dish name is: "${sanitizedDishName}"`;
 
     const userContent = buildUserTextContent(prompt);
-    const result = await model.generateContent({ contents: [userContent] });
-    const responseText = extractModelText(result);
 
-    return NextResponse.json({ response: responseText }, { status: 200 });
+    for (const modelName of CHAT_MODEL_CANDIDATES) {
+      triedModels.push(modelName);
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent({ contents: [userContent] });
+        const responseText = extractModelText(result);
+
+        return NextResponse.json(
+          { response: responseText, model: modelName },
+          { status: 200 }
+        );
+      } catch (modelError) {
+        lastModelError = modelError;
+        if (isRetryableModelError(modelError)) {
+          console.warn(
+            `Gemini model "${modelName}" was unavailable. Trying next candidate...`,
+            modelError.message
+          );
+          continue;
+        }
+        throw modelError;
+      }
+    }
+
+    const summary = summarizeModelAccessIssue(triedModels);
+    console.error('Gemini model access issue for chat endpoint:', {
+      triedModels,
+      error: lastModelError?.message,
+    });
+
+    return NextResponse.json(
+      {
+        message: summary,
+        error: lastModelError?.message,
+        triedModels,
+      },
+      { status: 502 }
+    );
 
   } catch (error) {
-    console.error("Error communicating with Gemini LLM:", error);
+    console.error('Error communicating with Gemini LLM:', error);
+
     return NextResponse.json(
-      { message: "A culinary misstep has occurred! Failed to retrieve text information.", error: error.message },
+      {
+        message: 'A culinary misstep has occurred! Failed to retrieve text information.',
+        error: error.message,
+      },
       { status: 500 }
     );
   }
