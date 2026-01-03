@@ -22,7 +22,7 @@ export const extractModelText = (result) => {
       if (typeof helperText === 'string' && helperText.trim()) {
         return helperText.trim();
       }
-    } catch (error) {
+    } catch {
       // Fallback to manual extraction below.
     }
   }
