@@ -18,6 +18,7 @@ import {
   validationConstants,
   validateImagePayload,
 } from '../lib/inputValidation';
+import AirQualitySection from './components/AirQualitySection';
 
 // --- Configuration ---
 const ALLERGEN_OPTIONS = [
@@ -233,6 +234,7 @@ const App = () => {
   // --- New State for Menu and Allergens ---
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAllergenModalOpen, setIsAllergenModalOpen] = useState(false);
+  const [isAirQualityPanelOpen, setIsAirQualityPanelOpen] = useState(false);
   // Stores selected allergens as an array of strings (e.g., ['peanuts', 'milk'])
   const [selectedAllergens, setSelectedAllergens] = useState([]); 
   // Tracks if the user has completed the initial selection flow
@@ -630,6 +632,8 @@ const App = () => {
       setIsAllergenModalOpen(true); // Open the modal with current selections
     } else if (item === "Food Alternative Recommender") {
       setChatMode(CHAT_MODES.ALTERNATIVE);
+    } else if (item === "Air Quality Radar") {
+      setIsAirQualityPanelOpen(true);
     }
 
     if (item !== "Select Allergens") {
@@ -638,7 +642,7 @@ const App = () => {
   };
 
   // Check if any critical UI element is open/active to disable inputs
-  const isOverlayActive = isMenuOpen || isAllergenModalOpen;
+  const isOverlayActive = isMenuOpen || isAllergenModalOpen || isAirQualityPanelOpen;
   const isInputDisabled = isLoading || isTyping || isOverlayActive || isHydratingPreferences;
   const headerTitle = chatMode === CHAT_MODES.ALTERNATIVE ? 'Food Alternative Recommender' : 'Allergen Identifier';
   const inputPlaceholder = chatMode === CHAT_MODES.ALTERNATIVE
@@ -822,6 +826,13 @@ const App = () => {
           <Text style={styles.menuItemText}>Food Alternative Recommender</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity 
+            style={styles.menuItem} 
+            onPress={() => handleMenuItemPress("Air Quality Radar")}
+        >
+          <Text style={styles.menuItemText}>Air Quality Radar</Text>
+        </TouchableOpacity>
+
       </View>
 
       {/* --- Allergen Selection Modal --- */}
@@ -833,7 +844,33 @@ const App = () => {
             isInitialSetup={!hasSelectedInitialAllergens}
         />
       )}
-      
+
+      {isAirQualityPanelOpen && (
+        <>
+          <TouchableOpacity
+            style={styles.backdrop}
+            onPress={() => setIsAirQualityPanelOpen(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.aqiOverlay} pointerEvents="box-none">
+            <View style={styles.aqiPanel}>
+              <View style={styles.aqiPanelHeader}>
+                <Text style={styles.aqiPanelTitle}>Atmospheric Radar</Text>
+                <TouchableOpacity
+                  onPress={() => setIsAirQualityPanelOpen(false)}
+                  style={styles.aqiCloseButton}
+                >
+                  <Text style={styles.aqiCloseButtonText}>&times;</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.aqiPanelBody}>
+                <AirQualitySection />
+              </View>
+            </View>
+          </View>
+        </>
+      )}
+
     </View>
   );
 };
@@ -1250,6 +1287,64 @@ const styles = StyleSheet.create({
     color: '#E0E0E0',
     fontFamily: 'Inter, sans-serif',
     fontWeight: '500',
+  },
+  aqiOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 40,
+  },
+  aqiPanel: {
+    width: '100%',
+    maxWidth: 960,
+    height: '85%',
+    backgroundColor: '#0b1120',
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.25)',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.65,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 20 },
+    elevation: 18,
+    overflow: 'hidden',
+  },
+  aqiPanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(148, 163, 184, 0.25)',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+  },
+  aqiPanelTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#e2e8f0',
+    fontFamily: 'Space Grotesk, Inter, sans-serif',
+  },
+  aqiCloseButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(148, 163, 184, 0.2)',
+  },
+  aqiCloseButtonText: {
+    fontSize: 32,
+    lineHeight: 32,
+    color: '#f8fafc',
+  },
+  aqiPanelBody: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.92)',
   },
 });
 
