@@ -326,10 +326,6 @@ const AirQualitySection = () => {
                   {formatMetricValue(selectedCity.pollen?.index, 1)} ({selectedCity.pollenLevel?.label ?? 'Unknown'})
                 </Text>
               </View>
-              <View style={styles.metricBlock}>
-                <Text style={styles.metricLabel}>Timestamp</Text>
-                <Text style={styles.metricValueSmall}>{formatTimestamp(selectedCity.air?.timestamp)}</Text>
-              </View>
             </View>
           </View>
         ) : (
@@ -402,7 +398,7 @@ const AirQualitySection = () => {
             onPress={() => setIsLegendExpanded((prev) => !prev)}
             style={[styles.legendToggle, isLegendExpanded && styles.legendToggleActive]}
           >
-            <Text style={styles.legendToggleText}>{isLegendExpanded ? 'Hide Key' : 'Show Key'}</Text>
+            <Text style={styles.legendToggleText}>{isLegendExpanded ? 'Hide' : 'Key'}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -456,7 +452,6 @@ const AirQualitySection = () => {
                 <Text style={[styles.manualMetricValue, { color: manualResult?.pollenLevel?.color ?? '#f0f0f0' }]}>
                   {formatMetricValue(manualResult?.metrics?.pollen?.index, 1)} ({manualResult?.pollenLevel?.label ?? 'Unknown'})
                 </Text>
-                <Text style={styles.manualMetricDetail}>Updated {formatTimestamp(manualResult?.metrics?.pollen?.timestamp)}</Text>
               </View>
             </View>
           </View>
@@ -689,11 +684,11 @@ const styles = StyleSheet.create({
   },
   legendToggle: {
     position: 'absolute',
-    bottom: 16,
-    right: 16,
+    top: 16,
+    left: 16,
     borderRadius: 999,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     backgroundColor: 'rgba(15, 23, 42, 0.8)',
     borderWidth: 1,
     borderColor: 'rgba(148, 163, 184, 0.5)',
@@ -709,9 +704,10 @@ const styles = StyleSheet.create({
   },
   legendToggleText: {
     color: '#e2e8f0',
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Space Grotesk, Inter, sans-serif',
     letterSpacing: 0.3,
+    fontWeight: '500',
   },
   markerGlow: {
     position: 'absolute',
@@ -743,40 +739,40 @@ const styles = StyleSheet.create({
   },
   mapLegend: {
     position: 'absolute',
-    bottom: 72,
-    right: 16,
-    backgroundColor: 'rgba(13, 23, 42, 0.92)',
-    padding: 16,
+    top: 50,
+    left: 16,
+    backgroundColor: 'rgba(15, 23, 42, 0.92)',
     borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.35)',
-    shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
+    borderColor: 'rgba(148, 163, 184, 0.25)',
+    shadowColor: '#0f172a',
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
     shadowOffset: { width: 0, height: 12 },
     elevation: 24,
   },
   legendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   legendTitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#e2e8f0',
     fontWeight: '600',
-    marginBottom: 12,
+    marginBottom: 10,
     fontFamily: 'Space Grotesk, Inter, sans-serif',
   },
   legendSwatch: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    marginRight: 12,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    marginRight: 10,
   },
   legendLabel: {
     color: '#d1d5db',
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Space Grotesk, Inter, sans-serif',
   },
   manualRow: {

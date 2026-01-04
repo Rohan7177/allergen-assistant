@@ -40,7 +40,7 @@ const getInitialBotMessage = (mode) => {
     return "Greetings, culinary explorer! I'm Alton Brown, ready to help you discover allergen-aware alternatives. Tell me about the dish or craving you're navigating, and I'll cook up substitutions that steer clear of your flagged allergens.";
   }
 
-  return "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo!";
+  return "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo! You can also explore our Food Alternative Recommender for allergen-safe substitutions or check the Environmental Allergen Tracker for real-time pollen and air quality data.";
 };
 
 // Helper component to format text with bolding and handle newlines
@@ -632,7 +632,7 @@ const App = () => {
       setIsAllergenModalOpen(true); // Open the modal with current selections
     } else if (item === "Food Alternative Recommender") {
       setChatMode(CHAT_MODES.ALTERNATIVE);
-    } else if (item === "Air Quality Radar") {
+    } else if (item === "Environmental Allergen Tracker") {
       setIsAirQualityPanelOpen(true);
     }
 
@@ -644,7 +644,7 @@ const App = () => {
   // Check if any critical UI element is open/active to disable inputs
   const isOverlayActive = isMenuOpen || isAllergenModalOpen || isAirQualityPanelOpen;
   const isInputDisabled = isLoading || isTyping || isOverlayActive || isHydratingPreferences;
-  const headerTitle = chatMode === CHAT_MODES.ALTERNATIVE ? 'Food Alternative Recommender' : 'Allergen Identifier';
+  const headerTitle = chatMode === CHAT_MODES.ALTERNATIVE ? 'Food Alternative Recommender' : 'Multi-Purpose Allergen Helper';
   const inputPlaceholder = chatMode === CHAT_MODES.ALTERNATIVE
     ? "Describe the dish you need an allergen-safe alternative for"
     : "Enter a dish name";
@@ -828,9 +828,9 @@ const App = () => {
 
         <TouchableOpacity 
             style={styles.menuItem} 
-            onPress={() => handleMenuItemPress("Air Quality Radar")}
+            onPress={() => handleMenuItemPress("Environmental Allergen Tracker")}
         >
-          <Text style={styles.menuItemText}>Air Quality Radar</Text>
+          <Text style={styles.menuItemText}>Environmental Allergen Tracker</Text>
         </TouchableOpacity>
 
       </View>
@@ -855,7 +855,7 @@ const App = () => {
           <View style={styles.aqiOverlay} pointerEvents="box-none">
             <View style={styles.aqiPanel}>
               <View style={styles.aqiPanelHeader}>
-                <Text style={styles.aqiPanelTitle}>Atmospheric Radar</Text>
+                <Text style={styles.aqiPanelTitle}>Environmental Allergen Tracker</Text>
                 <TouchableOpacity
                   onPress={() => setIsAirQualityPanelOpen(false)}
                   style={styles.aqiCloseButton}
@@ -1047,7 +1047,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#E0E0E0',
     fontFamily: 'Inter, sans-serif',
