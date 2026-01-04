@@ -1,6 +1,6 @@
 'use server';
 
-import { getDbPool, withConnection } from './db';
+import { withConnection } from './db';
 
 const ALLERGEN_SEED = [
   'Peanuts',
