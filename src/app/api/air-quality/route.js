@@ -85,7 +85,7 @@ const handleStream = (request, searchParams) => {
         clearInterval(heartbeatInterval);
         try {
           controller.close();
-        } catch (error) {
+        } catch {
           // already closed – ignore
         }
       };
