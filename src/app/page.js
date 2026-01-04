@@ -19,6 +19,7 @@ import {
   validateImagePayload,
 } from '../lib/inputValidation';
 import AirQualitySection from './components/AirQualitySection';
+import OITDoseLogger from './components/OITDoseLogger';
 
 // --- Configuration ---
 const ALLERGEN_OPTIONS = [
@@ -235,6 +236,7 @@ const App = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAllergenModalOpen, setIsAllergenModalOpen] = useState(false);
   const [isAirQualityPanelOpen, setIsAirQualityPanelOpen] = useState(false);
+  const [isOITPanelOpen, setIsOITPanelOpen] = useState(false);
   // Stores selected allergens as an array of strings (e.g., ['peanuts', 'milk'])
   const [selectedAllergens, setSelectedAllergens] = useState([]); 
   // Tracks if the user has completed the initial selection flow
@@ -614,6 +616,8 @@ const App = () => {
     initializeConversationForMode(chatMode);
     setIsMenuOpen(false);
     setIsAllergenModalOpen(false); 
+    setIsAirQualityPanelOpen(false);
+    setIsOITPanelOpen(false);
   };
 
   // Function for the new Menu button (toggle)
@@ -634,6 +638,10 @@ const App = () => {
       setChatMode(CHAT_MODES.ALTERNATIVE);
     } else if (item === "Environmental Allergen Tracker") {
       setIsAirQualityPanelOpen(true);
+      setIsOITPanelOpen(false);
+    } else if (item === "OIT Dose Logger") {
+      setIsOITPanelOpen(true);
+      setIsAirQualityPanelOpen(false);
     }
 
     if (item !== "Select Allergens") {
@@ -642,7 +650,7 @@ const App = () => {
   };
 
   // Check if any critical UI element is open/active to disable inputs
-  const isOverlayActive = isMenuOpen || isAllergenModalOpen || isAirQualityPanelOpen;
+  const isOverlayActive = isMenuOpen || isAllergenModalOpen || isAirQualityPanelOpen || isOITPanelOpen;
   const isInputDisabled = isLoading || isTyping || isOverlayActive || isHydratingPreferences;
   const headerTitle = chatMode === CHAT_MODES.ALTERNATIVE ? 'Food Alternative Recommender' : 'Multi-Purpose Allergen Helper';
   const inputPlaceholder = chatMode === CHAT_MODES.ALTERNATIVE
@@ -833,6 +841,13 @@ const App = () => {
           <Text style={styles.menuItemText}>Environmental Allergen Tracker</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity 
+            style={styles.menuItem} 
+            onPress={() => handleMenuItemPress("OIT Dose Logger")}
+        >
+          <Text style={styles.menuItemText}>OIT Dose Logger</Text>
+        </TouchableOpacity>
+
       </View>
 
       {/* --- Allergen Selection Modal --- */}
@@ -866,6 +881,32 @@ const App = () => {
               <View style={styles.aqiPanelBody}>
                 <AirQualitySection />
               </View>
+            </View>
+          </View>
+        </>
+      )}
+
+      {isOITPanelOpen && (
+        <>
+          <TouchableOpacity
+            style={styles.backdrop}
+            onPress={() => setIsOITPanelOpen(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.oitOverlay} pointerEvents="box-none">
+            <View style={styles.oitPanel}>
+              <View style={styles.oitPanelHeader}>
+                <Text style={styles.oitPanelTitle}>OIT Dose Logger</Text>
+                <TouchableOpacity
+                  onPress={() => setIsOITPanelOpen(false)}
+                  style={styles.oitCloseButton}
+                >
+                  <Text style={styles.oitCloseButtonText}>&times;</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.oitPanelBody} contentContainerStyle={styles.oitPanelBodyContent}>
+                <OITDoseLogger />
+              </ScrollView>
             </View>
           </View>
         </>
@@ -1341,6 +1382,75 @@ const styles = StyleSheet.create({
     fontSize: 32,
     lineHeight: 32,
     color: '#f8fafc',
+  },
+  aqiPanelBody: {
+    flex: 1,
+    paddingTop: 12,
+  },
+  oitOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 40,
+  },
+  oitPanel: {
+    width: '100%',
+    maxWidth: 960,
+    height: '85%',
+    backgroundColor: '#1a1029',
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(236, 72, 153, 0.35)',
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.55,
+    shadowRadius: 24,
+    elevation: 18,
+  },
+  oitPanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 26,
+    paddingVertical: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(236, 72, 153, 0.35)',
+    backgroundColor: 'rgba(45, 18, 56, 0.95)',
+  },
+  oitPanelTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#fdf4ff',
+    fontFamily: 'Space Grotesk, Inter, sans-serif',
+  },
+  oitCloseButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(244, 114, 182, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(244, 114, 182, 0.4)',
+  },
+  oitCloseButtonText: {
+    fontSize: 30,
+    lineHeight: 30,
+    color: '#fde4f2',
+  },
+  oitPanelBody: {
+    flex: 1,
+  },
+  oitPanelBodyContent: {
+    padding: 28,
+    paddingBottom: 48,
   },
   aqiPanelBody: {
     flex: 1,
