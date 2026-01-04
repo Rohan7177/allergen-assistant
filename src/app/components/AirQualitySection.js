@@ -80,7 +80,7 @@ const formatTimestamp = (timestamp) => {
       hour: '2-digit',
       minute: '2-digit',
     })}`;
-  } catch (error) {
+  } catch {
     return 'Unknown';
   }
 };
@@ -192,9 +192,9 @@ const AirQualitySection = () => {
         }
 
         startStream(data?.availableCities);
-      } catch (error) {
+      } catch (err) {
         if (!isMounted) return;
-        setStreamError(error.message || 'Failed to load air quality data.');
+        setStreamError(err.message || 'Failed to load air quality data.');
       }
     };
 
@@ -253,8 +253,8 @@ const AirQualitySection = () => {
 
       const data = await response.json();
       setManualResult(data);
-    } catch (error) {
-      setManualError(error.message || 'Failed to fetch AQI for coordinates.');
+    } catch (err) {
+      setManualError(err.message || 'Failed to fetch AQI for coordinates.');
     } finally {
       setIsManualLoading(false);
     }
