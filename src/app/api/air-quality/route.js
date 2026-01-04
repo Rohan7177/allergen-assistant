@@ -5,6 +5,7 @@ import {
   listAvailableCities,
   resolveAqiLevel,
   resolvePollenLevel,
+  fetchCityAqiByName,
 } from '../../../lib/airQualityService';
 
 const parseCities = (params) => {
@@ -15,6 +16,17 @@ const parseCities = (params) => {
     .split(',')
     .map((name) => name.trim())
     .filter((name) => name.length > 0);
+};
+
+const safeEnqueue = (controller, payload) => {
+  if (!payload) return;
+  try {
+    controller.enqueue(payload);
+  } catch (error) {
+    if (error?.code !== 'ERR_INVALID_STATE') {
+      console.warn('SSE enqueue failed', error?.message || error);
+    }
+  }
 };
 
 const buildJsonError = (message, status = 500) =>
@@ -34,23 +46,30 @@ const handleStream = (request, searchParams) => {
   const stream = new ReadableStream({
     start(controller) {
       let cancelled = false;
+      let lastErrorTimestamp = 0;
 
       const sendHeartbeat = () => {
         if (cancelled) return;
-        controller.enqueue(createEventPayload('heartbeat', { timestamp: Date.now() }));
+        safeEnqueue(controller, createEventPayload('heartbeat', { timestamp: Date.now() }));
       };
 
       const sendUpdate = async () => {
         if (cancelled) return;
         try {
           const results = await fetchBatchCityAqi(cityList);
-          controller.enqueue(createEventPayload('update', { results }));
+          safeEnqueue(controller, createEventPayload('update', { results }));
         } catch (error) {
-          controller.enqueue(
-            createEventPayload('error', {
-              message: error?.message || 'Failed to refresh air quality metrics.',
-            })
-          );
+          if (cancelled) return;
+          const now = Date.now();
+          if (now - lastErrorTimestamp > 10_000) {
+            safeEnqueue(
+              controller,
+              createEventPayload('error', {
+                message: error?.message || 'Failed to refresh air quality metrics.',
+              })
+            );
+            lastErrorTimestamp = now;
+          }
         }
       };
 
@@ -64,7 +83,11 @@ const handleStream = (request, searchParams) => {
         cancelled = true;
         clearInterval(updateInterval);
         clearInterval(heartbeatInterval);
-        controller.close();
+        try {
+          controller.close();
+        } catch (error) {
+          // already closed – ignore
+        }
       };
 
       if (request.signal) {
@@ -92,6 +115,16 @@ export async function GET(request) {
 
   const latParam = searchParams.get('lat');
   const lonParam = searchParams.get('lon');
+  const cityParam = searchParams.get('city');
+
+  if (cityParam) {
+    try {
+      const result = await fetchCityAqiByName(cityParam);
+      return NextResponse.json(result);
+    } catch (error) {
+      return buildJsonError(error?.message || 'Failed to fetch air quality for the requested city.', 404);
+    }
+  }
 
   if (latParam !== null && lonParam !== null) {
     const latitude = Number.parseFloat(latParam);

@@ -53,7 +53,7 @@ const pollenRadiusForLabel = (label) => {
     case 'Very High':
       return 120;
     default:
-      return 50;
+      return 60;
   }
 };
 
@@ -101,10 +101,11 @@ const AirQualitySection = () => {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [streamStatus, setStreamStatus] = useState(null);
   const [streamError, setStreamError] = useState(null);
-  const [manualCoords, setManualCoords] = useState('');
+  const [manualCityQuery, setManualCityQuery] = useState('');
   const [manualResult, setManualResult] = useState(null);
   const [manualError, setManualError] = useState(null);
   const [isManualLoading, setIsManualLoading] = useState(false);
+  const [isLegendExpanded, setIsLegendExpanded] = useState(false);
 
   const eventSourceRef = useRef(null);
 
@@ -219,23 +220,9 @@ const AirQualitySection = () => {
   const handleManualLookup = useCallback(async () => {
     setManualError(null);
 
-    const trimmed = manualCoords.trim();
+    const trimmed = manualCityQuery.trim();
     if (!trimmed) {
-      setManualError('Enter coordinates in "latitude, longitude" format.');
-      return;
-    }
-
-    const parts = trimmed.split(',').map((value) => value.trim());
-    if (parts.length !== 2) {
-      setManualError('Enter coordinates in "latitude, longitude" format.');
-      return;
-    }
-
-    const latitude = Number.parseFloat(parts[0]);
-    const longitude = Number.parseFloat(parts[1]);
-
-    if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
-      setManualError('Latitude and longitude must be numeric values.');
+      setManualError('Enter a city name to analyze.');
       return;
     }
 
@@ -243,7 +230,7 @@ const AirQualitySection = () => {
     setManualResult(null);
 
     try {
-      const params = new URLSearchParams({ lat: latitude.toString(), lon: longitude.toString() });
+      const params = new URLSearchParams({ city: trimmed });
       const response = await fetch(`/api/air-quality?${params.toString()}`, { cache: 'no-store' });
 
       if (!response.ok) {
@@ -254,11 +241,11 @@ const AirQualitySection = () => {
       const data = await response.json();
       setManualResult(data);
     } catch (err) {
-      setManualError(err.message || 'Failed to fetch AQI for coordinates.');
+      setManualError(err.message || 'Failed to fetch AQI details for that city.');
     } finally {
       setIsManualLoading(false);
     }
-  }, [manualCoords]);
+  }, [manualCityQuery]);
 
   const computedStatus = combineStatus(streamStatus);
 
@@ -364,7 +351,7 @@ const AirQualitySection = () => {
 
             const pollenLabel = entry.pollenLevel?.label ?? 'Unknown';
             const pollenColor = entry.pollenLevel?.color ?? '#7f8c8d';
-            const glowColor = hexToRgba(pollenColor, 0.35);
+            const glowColor = hexToRgba(pollenColor, selectedCity?.city === entry.city ? 0.6 : 0.35);
             const radius = pollenRadiusForLabel(pollenLabel);
             const highlight = selectedCity?.city === entry.city;
 
@@ -399,30 +386,40 @@ const AirQualitySection = () => {
               </View>
             );
           })}
-          <View style={styles.mapLegend}>
-            {POLLEN_LEGEND.map((item) => (
-              <View key={item.label} style={styles.legendRow}>
-                <View style={[styles.legendSwatch, { backgroundColor: item.color }]} />
-                <Text style={styles.legendLabel}>{item.label}</Text>
-              </View>
-            ))}
-          </View>
+          {isLegendExpanded && (
+            <View style={styles.mapLegend}>
+              <Text style={styles.legendTitle}>Pollen Key</Text>
+              {POLLEN_LEGEND.map((item) => (
+                <View key={item.label} style={styles.legendRow}>
+                  <View style={[styles.legendSwatch, { backgroundColor: item.color }]} />
+                  <Text style={styles.legendLabel}>{item.label}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          <TouchableOpacity
+            onPress={() => setIsLegendExpanded((prev) => !prev)}
+            style={[styles.legendToggle, isLegendExpanded && styles.legendToggleActive]}
+          >
+            <Text style={styles.legendToggleText}>{isLegendExpanded ? 'Hide Key' : 'Show Key'}</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Manual Coordinate Check</Text>
+        <Text style={styles.sectionTitle}>City Snapshot Console</Text>
         <Text style={styles.sectionSubtitle}>
-          Drop in latitude and longitude to get a precise AQI & pollen snapshot. Perfect for travel planning.
+          Drop in any city worldwide and see the latest particulate and pollen pulse before you head out.
         </Text>
 
         <View style={styles.manualRow}>
           <TextInput
             style={styles.manualInput}
-            placeholder="37.7749, -122.4194"
+            placeholder="Try 'Portland' or 'London'"
             placeholderTextColor="#64748b"
-            value={manualCoords}
-            onChangeText={setManualCoords}
+            value={manualCityQuery}
+            onChangeText={setManualCityQuery}
             editable={!isManualLoading}
           />
           <TouchableOpacity
@@ -430,7 +427,7 @@ const AirQualitySection = () => {
             onPress={handleManualLookup}
             disabled={isManualLoading}
           >
-            <Text style={styles.manualButtonText}>{isManualLoading ? 'Fetching…' : 'Analyze'}</Text>
+            <Text style={styles.manualButtonText}>{isManualLoading ? 'Scanning…' : 'Analyze'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -666,7 +663,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     aspectRatio: 1.6,
-    borderRadius: 24,
+    borderRadius: 22,
     overflow: 'hidden',
     backgroundColor: '#0f172a',
     borderWidth: 1,
@@ -678,13 +675,43 @@ const styles = StyleSheet.create({
     elevation: 14,
   },
   mapBackground: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    right: 0,
     backgroundImage:
       'radial-gradient(circle at 20% 30%, rgba(56, 189, 248, 0.15), transparent 60%), radial-gradient(circle at 80% 70%, rgba(16, 185, 129, 0.12), transparent 55%), linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(8, 47, 73, 0.92))',
   },
   mapMarker: {
     position: 'absolute',
-    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  legendToggle: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    borderRadius: 999,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.5)',
+    shadowColor: '#000',
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 16,
+  },
+  legendToggleActive: {
+    backgroundColor: 'rgba(30, 64, 175, 0.85)',
+    borderColor: 'rgba(96, 165, 250, 0.8)',
+  },
+  legendToggleText: {
+    color: '#e2e8f0',
+    fontSize: 14,
+    fontFamily: 'Space Grotesk, Inter, sans-serif',
+    letterSpacing: 0.3,
   },
   markerGlow: {
     position: 'absolute',
@@ -698,6 +725,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#0f172a',
     borderWidth: 2,
+    borderColor: 'rgba(148, 163, 184, 0.2)',
   },
   markerCoreHighlight: {
     width: 14,
@@ -715,28 +743,40 @@ const styles = StyleSheet.create({
   },
   mapLegend: {
     position: 'absolute',
-    bottom: 16,
+    bottom: 72,
     right: 16,
-    padding: 12,
-    borderRadius: 14,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    backgroundColor: 'rgba(13, 23, 42, 0.92)',
+    padding: 16,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(148, 163, 184, 0.2)',
+    borderColor: 'rgba(148, 163, 184, 0.35)',
+    shadowColor: '#000',
+    shadowOpacity: 0.5,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 24,
   },
   legendRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
+  },
+  legendTitle: {
+    fontSize: 16,
+    color: '#e2e8f0',
+    fontWeight: '600',
+    marginBottom: 12,
+    fontFamily: 'Space Grotesk, Inter, sans-serif',
   },
   legendSwatch: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    marginRight: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    marginRight: 12,
   },
   legendLabel: {
-    fontSize: 12,
-    color: '#cbd5f5',
+    color: '#d1d5db',
+    fontSize: 14,
     fontFamily: 'Space Grotesk, Inter, sans-serif',
   },
   manualRow: {
