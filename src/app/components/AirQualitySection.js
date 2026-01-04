@@ -142,7 +142,7 @@ const AirQualitySection = () => {
           if (payload?.timestamp) {
             setStreamStatus(payload.timestamp);
           }
-        } catch (error) {
+        } catch {
           setStreamStatus(Date.now());
         }
       });
@@ -154,7 +154,7 @@ const AirQualitySection = () => {
             setCitySummaries(payload.results);
             setLastUpdate(Date.now());
           }
-        } catch (error) {
+        } catch {
           setStreamError('Failed to parse live update.');
         }
       });
