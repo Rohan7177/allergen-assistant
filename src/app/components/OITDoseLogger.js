@@ -74,7 +74,6 @@ const AllergenPicker = ({ options, value, onChange }) => {
     <View style={styles.pickerContainer}>
       <View style={styles.pickerOverlayTop} pointerEvents="none" />
       <View style={styles.pickerOverlayBottom} pointerEvents="none" />
-      <View style={styles.pickerFocusRing} pointerEvents="none" />
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
@@ -135,7 +134,6 @@ const OITDoseLogger = () => {
   const [isFetching, setIsFetching] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const [successMessage, setSuccessMessage] = useState(null);
   const [allergens, setAllergens] = useState([]);
   const [logs, setLogs] = useState([]);
 
@@ -200,8 +198,6 @@ const OITDoseLogger = () => {
 
   const handleSubmit = useCallback(async () => {
     setError(null);
-    setSuccessMessage(null);
-
     if (!selectedAllergen) {
       setError('Choose an allergen to log.');
       return;
@@ -234,7 +230,6 @@ const OITDoseLogger = () => {
       }
 
       applyResponse(data);
-      setSuccessMessage(editingId ? 'Dose log updated.' : 'Dose log saved.');
       resetForm();
     } catch (err) {
       setError(err.message || 'Failed to save dose log.');
@@ -248,18 +243,15 @@ const OITDoseLogger = () => {
     setSelectedAllergen(entry.allergenCode);
     setDoseInput(String(entry.doseMg));
     setReaction(entry.reaction);
-    setSuccessMessage(null);
     setError(null);
   }, []);
 
   const handleCancelEdit = useCallback(() => {
     resetForm();
-    setSuccessMessage(null);
   }, [resetForm]);
 
   const handleDelete = useCallback(async (entry) => {
     setError(null);
-    setSuccessMessage(null);
     setIsSubmitting(true);
 
     try {
@@ -273,7 +265,6 @@ const OITDoseLogger = () => {
         throw new Error(data?.message || 'Failed to delete dose log.');
       }
       applyResponse(data);
-      setSuccessMessage('Dose log deleted.');
       if (editingId === entry.id) {
         resetForm();
       }
@@ -358,7 +349,6 @@ const OITDoseLogger = () => {
         </View>
 
         {error && <Text style={styles.feedbackError}>{error}</Text>}
-        {successMessage && <Text style={styles.feedbackSuccess}>{successMessage}</Text>}
       </View>
 
       <View style={[styles.card, styles.tableCard]}>
@@ -366,14 +356,6 @@ const OITDoseLogger = () => {
         <Text style={styles.sectionSubtitle}>
           Rows glow according to reaction severity. Click any record to edit or remove.
         </Text>
-
-        <View style={styles.tableHeader}>
-          <Text style={[styles.tableHeaderText, styles.tableColAllergen]}>Allergen</Text>
-          <Text style={[styles.tableHeaderText, styles.tableColDose]}>Dose</Text>
-          <Text style={[styles.tableHeaderText, styles.tableColReaction]}>Reaction</Text>
-          <Text style={[styles.tableHeaderText, styles.tableColTimestamp]}>Logged</Text>
-          <Text style={[styles.tableHeaderText, styles.tableColActions]}>Actions</Text>
-        </View>
 
         <ScrollView style={styles.tableBody} contentContainerStyle={styles.tableBodyContent}>
           {sortedLogs.length === 0 ? (
@@ -389,13 +371,16 @@ const OITDoseLogger = () => {
                 onPress={() => handleEdit(entry)}
                 activeOpacity={0.85}
               >
-                <Text style={[styles.tableCellText, styles.tableColAllergen]}>{entry.allergenLabel}</Text>
-                <Text style={[styles.tableCellText, styles.tableColDose]}>{formatDose(entry.doseMg)}</Text>
-                <View style={[styles.tableColReaction, styles.tableReactionCell]}>
-                  <Badge reaction={entry.reaction} />
+                <View style={styles.tableRowMain}>
+                  <Text style={styles.tableAllergen}>{entry.allergenLabel}</Text>
+                  <Text style={styles.tableDose}>{formatDose(entry.doseMg)}</Text>
                 </View>
-                <Text style={[styles.tableCellText, styles.tableColTimestamp]}>{formatTimestamp(entry.loggedAt)}</Text>
-                <View style={[styles.tableColActions, styles.tableActionsCell]}>
+                <View style={styles.tableRowMeta}>
+                  <Badge reaction={entry.reaction} />
+                  <Text style={styles.tableTimestamp}>{formatTimestamp(entry.loggedAt)}</Text>
+                </View>
+                <View style={styles.tableRowDivider} />
+                <View style={styles.tableRowActions}>
                   <TouchableOpacity
                     style={styles.inlineButton}
                     onPress={() => handleEdit(entry)}
@@ -584,19 +569,6 @@ const styles = StyleSheet.create({
     backgroundImage: 'linear-gradient(0deg, rgba(17, 24, 39, 0.95), rgba(17, 24, 39, 0))',
     zIndex: 6,
   },
-  pickerFocusRing: {
-    position: 'absolute',
-    top: '50%',
-    left: 12,
-    right: 12,
-    height: 56,
-    marginTop: -28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(250, 204, 21, 0.45)',
-    backgroundColor: 'rgba(217, 70, 239, 0.05)',
-    zIndex: 5,
-  },
   fieldGroup: {
     gap: 8,
   },
@@ -695,69 +667,60 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Space Grotesk, Inter, sans-serif',
   },
-  tableHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 16,
-    backgroundColor: 'rgba(244, 114, 182, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(244, 114, 182, 0.24)',
-    gap: 8,
-  },
   tableBody: {
-    maxHeight: 360,
+    maxHeight: 420,
   },
   tableBodyContent: {
     paddingVertical: 12,
     gap: 10,
   },
-  tableHeaderText: {
-    color: '#fde68a',
-    fontFamily: 'Space Grotesk, Inter, sans-serif',
-    fontSize: 13,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
   tableRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 18,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    gap: 8,
+    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    gap: 16,
     borderWidth: 1,
-    borderColor: 'rgba(250, 204, 21, 0.22)',
+    borderColor: 'rgba(250, 204, 21, 0.24)',
   },
-  tableCellText: {
-    color: '#f8fafc',
-    fontSize: 15,
+  tableRowMain: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  tableAllergen: {
+    flexShrink: 1,
+    color: '#fdf4ff',
+    fontSize: 18,
+    fontWeight: '700',
     fontFamily: 'Space Grotesk, Inter, sans-serif',
   },
-  tableReactionCell: {
-    justifyContent: 'center',
+  tableDose: {
+    color: '#fef3c7',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Space Grotesk, Inter, sans-serif',
   },
-  tableColAllergen: {
-    flex: 1.6,
-  },
-  tableColDose: {
-    flex: 1,
-  },
-  tableColReaction: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  tableColTimestamp: {
-    flex: 1.4,
-  },
-  tableColActions: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  tableActionsCell: {
+  tableRowMeta: {
     flexDirection: 'row',
-    gap: 8,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  tableTimestamp: {
+    color: '#cbd5f5',
+    fontSize: 14,
+    fontFamily: 'Space Grotesk, Inter, sans-serif',
+  },
+  tableRowDivider: {
+    height: 1,
+    backgroundColor: 'rgba(248, 250, 252, 0.08)',
+    borderRadius: 999,
+  },
+  tableRowActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
     justifyContent: 'flex-end',
   },
   inlineButton: {
