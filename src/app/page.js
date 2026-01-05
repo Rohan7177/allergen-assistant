@@ -41,7 +41,7 @@ const getInitialBotMessage = (mode) => {
     return "Greetings, culinary explorer! I'm Alton Brown, ready to help you discover allergen-aware alternatives. Tell me about the dish or craving you're navigating, and I'll cook up substitutions that steer clear of your flagged allergens.";
   }
 
-  return "Greetings, inquisitive eater! I'm Alton Brown, and I'm here to demystify the ingredients in your favorite dishes. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo! You can also explore our Food Alternative Recommender for allergen-safe substitutions, check the Environmental Allergen Tracker for real-time pollen and air quality data, or log your OIT doses to track tolerance progress.";
+  return "Greetings, inquisitive eater! I'm Alton Brown, and I'm your personal allergen assistant. What culinary conundrum can I help you unravel today? Simply type the dish name, or upload a menu photo! But there's more functions, too. In the side menu, you can also talk to me in the Food Alternative Recommender for allergen-safe substitutions, check the Environmental Allergen Tracker for real-time pollen and air quality data, or log your OIT doses to track tolerance progress. I have everything you need, all in one place!";
 };
 
 // Helper component to format text with bolding and handle newlines
