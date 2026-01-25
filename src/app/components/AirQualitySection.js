@@ -172,6 +172,7 @@ const AirQualitySection = () => {
 
     const loadInitialData = async () => {
       try {
+        // Fetch air quality data from server via AJAX for real-time environmental updates.
         const response = await fetch('/api/air-quality', { cache: 'no-store' });
         if (!response.ok) {
           throw new Error(`Request failed with status ${response.status}`);

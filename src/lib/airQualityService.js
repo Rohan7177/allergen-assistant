@@ -179,6 +179,7 @@ export const fetchAirAndPollenForLocation = async ({ latitude, longitude }) => {
     hourly: DEFAULT_HOURLY_POLLEN_METRICS.join(','),
   });
 
+  // Fetch real-time air quality and pollen data from Open-Meteo APIs in parallel to provide comprehensive environmental allergen information.
   const [airJson, pollenJson] = await Promise.all([
     safeJsonFetch(fetch(`${OPEN_METEO_AIR_QUALITY_URL}?${params.toString()}`, { next: { revalidate: 0 } }), 'pollutants'),
     safeJsonFetch(fetch(`${OPEN_METEO_POLLEN_URL}?${pollenParams.toString()}`, { next: { revalidate: 0 } }), 'pollen'),
@@ -226,6 +227,7 @@ export const fetchAirAndPollenForLocation = async ({ latitude, longitude }) => {
 };
 
 export const fetchBatchCityAqi = async (cityNames) => {
+  // Retrieve air quality metrics for multiple cities simultaneously using predefined coordinate mappings for efficient batch processing.
   const namesToFetch = Array.isArray(cityNames) && cityNames.length > 0 ? cityNames : Object.keys(CITY_COORDINATES);
   const uniqueNames = [...new Set(namesToFetch)].filter((name) => CITY_COORDINATES[name]);
 
@@ -288,6 +290,7 @@ const geocodeCityName = async (cityName) => {
 };
 
 export const fetchCityAqiByName = async (cityName) => {
+  // Convert a city name into geographic coordinates and then fetch localized air quality and pollen data for that specific location.
   const geo = await geocodeCityName(cityName);
   const metrics = await fetchAirAndPollenForLocation(geo);
   const aqiLevel = resolveAqiLevel(metrics.air.usAqi ?? metrics.air.europeanAqi);

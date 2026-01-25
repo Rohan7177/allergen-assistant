@@ -11,6 +11,7 @@ const API_KEY = process.env.GOOGLE_API_KEY;
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 // Helper function to convert base64 image data into the format expected by the API
+// Convert base64 image data to API-compatible format while preserving MIME type.
 function convertToGenerativePart(base64Data, mimeType) {
   return {
     inlineData: {
@@ -19,6 +20,16 @@ function convertToGenerativePart(base64Data, mimeType) {
     },
   };
 }
+
+// Define allowed image MIME types for validation
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+]);
 
 export async function POST(request) {
   if (!API_KEY) {
@@ -40,7 +51,17 @@ export async function POST(request) {
   const { imageDataUrl, mimeType, selectedAllergens } = body ?? {};
 
   try {
+    // Validate uploaded image file to ensure safe type and size before processing.
     validateImagePayload({ dataUrl: imageDataUrl, mimeType, size: body?.fileSize });
+
+    // Additional file handling comments for image upload validation
+    if (!ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) {
+      throw new Error('Only JPEG, PNG, GIF, WEBP, HEIC, or HEIF images are allowed.');
+    }
+    // Enforce file size limit to prevent denial of service and storage abuse
+    if (body?.fileSize > 10 * 1024 * 1024) { // 10MB limit
+      throw new Error('Image file size exceeds the 10MB limit.');
+    }
   } catch (validationError) {
     return NextResponse.json(
       { message: validationError.message || 'Invalid image payload.' },
@@ -56,6 +77,8 @@ export async function POST(request) {
     : 'NONE_SELECTED'; 
 
   const imagePart = convertToGenerativePart(imageDataUrl, mimeType);
+
+  // Prepare image part for multimodal AI analysis with proper base64 encoding.
 
   // The prompt must instruct the model to analyze the image, detect dishes, and apply filtering for each one.
   const textPrompt = `You are a food allergen expert with the charismatic flair of Alton Brown.

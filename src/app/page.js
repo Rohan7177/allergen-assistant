@@ -277,6 +277,7 @@ const App = () => {
   useEffect(() => {
     const loadPreferences = async () => {
       try {
+        // Load user's allergen preferences via AJAX to maintain session state.
         const response = await fetch('/api/preferences');
 
         if (!response.ok) {
@@ -484,11 +485,13 @@ const App = () => {
     if (isTyping || isLoading || isMenuOpen || isAllergenModalOpen || isHydratingPreferences) return;
     const file = event.target.files[0];
     if (file) {
+      // Validate file type and size before reading to prevent malicious uploads.
       if (!ALLOWED_IMAGE_MIME_TYPES.has(file.type)) {
         setInputError('Only JPEG, PNG, GIF, WEBP, HEIC, or HEIF images are allowed.');
         event.target.value = '';
         return;
       }
+      // Enforce file size limit to prevent denial of service and storage abuse.
       if (file.size > MAX_IMAGE_SIZE_BYTES) {
         setInputError('Image files must be 5MB or smaller.');
         event.target.value = '';
@@ -499,6 +502,7 @@ const App = () => {
         const imageDataUrl = reader.result;
 
         try {
+          // Validate the processed image data against security and size constraints.
           validateImagePayload({ dataUrl: imageDataUrl, mimeType: file.type, size: file.size });
           setInputError(null);
         } catch (validationError) {
@@ -518,6 +522,7 @@ const App = () => {
         const safeAllergens = sanitizeAllergenList(selectedAllergens);
 
         try {
+          // Send image data to server for AI-powered allergen analysis via AJAX POST.
           const response = await fetch('/api/image-chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -570,6 +575,7 @@ const App = () => {
     hasSelectedInitialAllergens: initialFlag,
   }) => {
     try {
+      // Persist user's allergen selections to server via AJAX for session persistence.
       const response = await fetch('/api/preferences', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -669,7 +675,7 @@ const App = () => {
       />
 
       {/* Main Chat Content */}
-      <View style={{ flex: 1 }}>
+      <View style={styles.mainContent}>
         {/* Header Section */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleMenuPress} style={styles.headerIconLeft} disabled={isInputDisabled}>
@@ -1051,15 +1057,18 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'column',
     backgroundColor: '#121212',
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: Platform.select({ web: { small: 10, medium: 20, large: 30 }, default: 10 }),
-    maxWidth: 800,
-    alignSelf: 'center',
+    minHeight: '100dvh',
     width: '100%',
+    alignSelf: 'center',
+    maxWidth: 800,
+    paddingHorizontal: Platform.select({ web: { small: 10, medium: 20, large: 30 }, default: 10 }),
+    position: 'relative',
+  },
+  mainContent: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: 0,
   },
   header: {
     flexDirection: 'row',

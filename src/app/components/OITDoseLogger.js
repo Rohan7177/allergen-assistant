@@ -172,6 +172,7 @@ const OITDoseLogger = () => {
     setIsFetching(true);
     setError(null);
     try {
+      // Fetch OIT dose logs from server via AJAX to display user's dosing history.
       const response = await fetch('/api/oit-doses', { cache: 'no-store' });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
@@ -217,6 +218,8 @@ const OITDoseLogger = () => {
         doseMg: numericDose,
         reaction,
       };
+
+      // Save or update OIT dose log via AJAX to maintain persistent dosing records.
 
       const response = await fetch('/api/oit-doses', {
         method: editingId ? 'PUT' : 'POST',

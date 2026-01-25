@@ -1,3 +1,6 @@
+// Database configuration and connection management for the allergen assistant app.
+// Provides a cached MySQL connection pool and helper functions to safely execute queries.
+// Handles environment variable validation and connection lifecycle in both development and production.
 'use strict';
 
 import 'server-only';
@@ -5,6 +8,7 @@ import mysql from 'mysql2/promise';
 
 let cachedPool;
 
+// Build and validate the MySQL configuration from environment variables.
 const getConfig = () => {
   const {
     MYSQL_HOST,
@@ -43,6 +47,7 @@ const getConfig = () => {
   };
 };
 
+// Return a cached MySQL connection pool, creating it if necessary.
 export function getDbPool() {
   if (cachedPool) {
     return cachedPool;
@@ -65,6 +70,7 @@ export function getDbPool() {
   return cachedPool;
 }
 
+// Execute a callback with a database connection, ensuring the connection is released.
 export async function withConnection(callback) {
   const pool = getDbPool();
   const connection = await pool.getConnection();

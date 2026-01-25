@@ -15,9 +15,13 @@ const ALLERGEN_OPTIONS = [
 
 const ALLERGEN_OPTIONS_SET = new Set(ALLERGEN_OPTIONS);
 
-const SAFE_TEXT_REGEX = /^[\p{L}\p{N}\s.,!?"'()\-_/&:;%@#+]+$/u;
-const UNSAFE_TEXT_CHARS_REGEX = /[^\p{L}\p{N}\s.,!?"'()\-_/&:;%@#+]/gu;
+// Define regex patterns to validate and sanitize user input, preventing injection attacks.
+const SAFE_TEXT_REGEX = /^[\p{L}\p{N}\s.,!?"'()\-_/:;%@#+]+$/u;
+// Validate text input to ensure it only contains safe characters, preventing XSS attacks.
+const UNSAFE_TEXT_CHARS_REGEX = /[^\p{L}\p{N}\s.,!?"'()\-_/:;%@#+]/gu;
+// Validate allergen names to ensure they only contain safe characters, preventing injection attacks.
 const SAFE_ALLERGEN_REGEX = /^[\p{L}\s-]+$/u;
+// Validate data URLs to ensure they conform to a safe pattern, preventing injection attacks.
 const SAFE_DATA_URL_REGEX = /^data:(image\/[a-z0-9.+-]+);base64,[A-Za-z0-9+/=]+$/i;
 
 const MAX_TEXT_LENGTH = 280;
@@ -38,7 +42,9 @@ export const validationConstants = {
 };
 
 export const sanitizeAllergenList = (list) => {
-  if (!Array.isArray(list)) return [];
+  if (!Array.isArray(list)) return []
+
+  // Validate and filter allergen list items against safe patterns and allowed options.;
 
   const sanitized = list
     .map((item) => (typeof item === 'string' ? item.trim().toLowerCase() : ''))
@@ -55,6 +61,8 @@ export const sanitizeAllergenList = (list) => {
 export const sanitizeTextInput = (value, { preserveWhitespace = false } = {}) => {
   if (typeof value !== 'string') return '';
 
+  // Remove dangerous characters and normalize text to prevent XSS and injection attacks.
+
   let working = value;
 
   if (!preserveWhitespace) {
@@ -63,6 +71,7 @@ export const sanitizeTextInput = (value, { preserveWhitespace = false } = {}) =>
   }
 
   const withoutAngleBrackets = working.replace(/[<>]/g, '');
+  // Strip HTML angle brackets to prevent script injection in user input.
   const whitespaceHandled = preserveWhitespace
     ? withoutAngleBrackets
     : withoutAngleBrackets.replace(/\s+/g, ' ');
@@ -93,6 +102,7 @@ export const validateAndNormalizeText = (value, { required = true } = {}) => {
 };
 
 export const validateImagePayload = ({ dataUrl, mimeType, size }) => {
+  // Validate image payload to ensure safe file types and size limits.
   if (!mimeType || !ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) {
     throw new Error('Unsupported image type.');
   }

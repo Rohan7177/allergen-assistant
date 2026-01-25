@@ -22,6 +22,7 @@ const REACTION_LEVELS = new Set(['none', 'mild', 'severe']);
 let schemaReadyPromise;
 
 async function ensureSchema(connection) {
+  // Create the database schema for OIT allergens and dose logs if they don't exist.
   await connection.query(`
     CREATE TABLE IF NOT EXISTS oit_allergens (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -53,6 +54,7 @@ async function ensureSchema(connection) {
   ]);
 
   await connection.query(
+    // Insert seed allergen data into the oit_allergens table.
     `INSERT INTO oit_allergens (code, label) VALUES ${insertValues
       .map(() => '(?, ?)')
       .join(', ')}
@@ -147,6 +149,7 @@ export async function createDoseLog(payload) {
   const validated = validateDosePayload(payload);
 
   return withConnection(async (connection) => {
+    // Insert a new OIT dose log entry into the database.
     const allergenId = await resolveAllergenId(connection, validated.allergenCode);
 
     const [result] = await connection.query(
@@ -167,6 +170,7 @@ export async function updateDoseLog(id, payload) {
   const validated = validateDosePayload(payload);
 
   return withConnection(async (connection) => {
+    // Update an existing OIT dose log with new values.
     const allergenId = await resolveAllergenId(connection, validated.allergenCode);
 
     const [result] = await connection.query(
@@ -188,6 +192,7 @@ export async function deleteDoseLog(id) {
   await ensureSchemaReady();
 
   return withConnection(async (connection) => {
+    // Remove an OIT dose log from the database by ID.
     const [result] = await connection.query(
       'DELETE FROM oit_dose_logs WHERE id = ?'
       , [id]

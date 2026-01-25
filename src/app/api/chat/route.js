@@ -58,6 +58,7 @@ export async function POST(request) {
     : 'NONE_SELECTED';
 
   try {
+    // Initialize the Gemini API client to enable AI-powered allergen analysis and food safety guidance.
     const genAI = new GoogleGenerativeAI(API_KEY);
     const triedModels = [];
     let lastModelError = null;
@@ -68,17 +69,22 @@ When given a dish name, first provide a brief (around 50 words) description of t
 You MUST follow the allergen filtering rules below:
 1. **The only allergens you are allowed to mention are from this user's selection list:** [${allergenListString}].
 2. **Identify common food allergens** for the dish.
-3. **ONLY HIGHLIGHT, in a clear, bulleted list, the allergens that are present in the dish AND are on the user's selection list.** Use the '• ' character for the bulleted list. Each allergen must be bolded (e.g., • **MILK**).
+3. **ONLY HIGHLIGHT, in a clear, bulleted list, the allergens that are present in the dish AND are on the user's selection list.** Use the '• ' 
+character for the bulleted list. Each allergen must be bolded (e.g., • **MILK**).
 4. If the dish contains **ANY** of the user's selected allergens, list those found allergens.
 5. If **NONE** of the user's selected allergens are found in the dish, you must output the single line of text: "**None of your selected allergens found.**"
-6. After the allergen output (either the list or the 'None found' message), **assess the specific dish's likelihood of cross-contamination (e.g., high, low, or moderate) based on common kitchen practices and ingredients, then provide a general warning about cross-contamination in shared kitchen environments,** and always advise the user to confirm with the establishment.
+6. After the allergen output (either the list or the 'None found' message), **assess the specific dish's likelihood of cross-contamination (e.g., high, low, or moderate)
+based on common kitchen practices and ingredients, 
+then provide a general warning about cross-contamination in shared kitchen environments,** and always advise the user to confirm with the establishment.
 The dish name is: "${sanitizedDishName}"`;
 
     const userContent = buildUserTextContent(prompt);
 
     for (const modelName of CHAT_MODEL_CANDIDATES) {
+      // Iterate through available Gemini models to ensure reliable responses even if some models are unavailable.
       triedModels.push(modelName);
       try {
+        // Generate a contextual response using the selected Gemini model based on the user's dish and allergen profile.
         const model = genAI.getGenerativeModel({ model: modelName });
         const result = await model.generateContent({ contents: [userContent] });
         const responseText = extractModelText(result);

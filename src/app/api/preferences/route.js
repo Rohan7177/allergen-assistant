@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 
 const PREFERENCES_COOKIE = "allergenPreferences";
+// Define cookie name and 30-day expiration for user preference persistence.
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
 export async function GET(request) {
+  // Retrieve the user's allergen preferences from the secure cookie.
   const cookie = request.cookies.get(PREFERENCES_COOKIE);
 
   if (!cookie?.value) {
+    // Return default preferences if no cookie exists yet.
     return NextResponse.json(
       { selectedAllergens: [], hasSelectedInitialAllergens: false },
       { status: 200 }
@@ -14,6 +17,7 @@ export async function GET(request) {
   }
 
   try {
+    // Parse stored JSON preferences from cookie value.
     const parsed = JSON.parse(cookie.value);
     const selectedAllergens = Array.isArray(parsed.selectedAllergens)
       ? parsed.selectedAllergens
@@ -39,6 +43,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    // Save the user's allergen selections to a secure cookie for session persistence.
     const body = await request.json();
     const selectedAllergens = Array.isArray(body.selectedAllergens)
       ? body.selectedAllergens
@@ -51,6 +56,7 @@ export async function POST(request) {
     const response = NextResponse.json({ success: true }, { status: 200 });
 
     response.cookies.set({
+      // Store allergen preferences as JSON in an httpOnly, secure cookie.
       name: PREFERENCES_COOKIE,
       value: JSON.stringify({
         selectedAllergens,
